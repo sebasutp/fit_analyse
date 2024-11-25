@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.two-col-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal-width columns */
+  gap: 10px; /* Gap between cards */
+}
+
+.activity-container {
+  border-bottom: 1px solid #ccc;
+  padding: 10px;
+}
+
+.activity-title {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.card-container {
+  border-bottom: 1px solid #ccc;
+  padding: 10px;
+}
+
+.card-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.activity-date {
+  font-size: 16px;
+  color: gray;
+}
