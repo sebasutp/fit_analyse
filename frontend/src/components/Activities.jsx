@@ -26,7 +26,7 @@ function Activities() {
         setIsLoading(false);
       })
       .catch((error) => {
-        console.error('Error fetching screenshot details:', error);
+        console.error('Error fetching activity details:', error);
       });
   }
 

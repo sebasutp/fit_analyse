@@ -32,10 +32,6 @@ function NewActivity() {
     });
   }
 
-  const setScreenshotMessage = (e) => {
-    setImage(e.taget.value);
-  }
-
   return (
     <div>
       <label>Upload Fit file</label>
