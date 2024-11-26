@@ -11,6 +11,7 @@ export function ActivityCard({activity}) {
           <Metric name="Elev. Gain" value={activity.elevation_gain} unit="m" />
           <MetricBox name="Time" value={getElapsedTime(activity.active_time)} />
         </div>
+        <img src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_id}`} />
       </div>
     );
   };

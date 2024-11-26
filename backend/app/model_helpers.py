@@ -6,7 +6,9 @@ from app import model
 import pyarrow.feather as feather
 
 from typing import Sequence
-from sqlmodel import create_engine, Session, SQLModel
+from sqlmodel import create_engine, Session, select
+from fastapi import HTTPException
+from staticmap import StaticMap, Line
 
 connect_args = {"check_same_thread": False}
 engine = create_engine(
@@ -18,7 +20,6 @@ def get_db_session():
     """Returns DB session."""
     with Session(engine) as session:
         yield session
-
 
 def extract_data_to_dataframe(fitfile):
     data = []
@@ -82,8 +83,21 @@ def compute_elevation_gain(df: pandas.DataFrame, tolerance: float, min_elev: flo
 
 def subsample_timeseries(time_series: pandas.Series, num_samples: int):
     indices = np.linspace(0, len(time_series) - 1, num_samples, dtype=int)
-    subsampled_series = time_series[indices]
-    return subsampled_series.to_list()
+    return time_series.to_numpy()[indices]
+
+def get_activity_map(ride_df: pandas.DataFrame, num_samples: int):
+    df = ride_df.dropna(subset=['position_lat', 'position_long'])
+    w = int(os.getenv("STATIC_MAP_W", "400"))
+    h = int(os.getenv("STATIC_MAP_H", "300"))
+    m = StaticMap(w, h, 10)
+    lat = subsample_timeseries(df.position_lat, num_samples=num_samples)
+    long = subsample_timeseries(df.position_long, num_samples=num_samples)
+    line = list(zip(long, lat))
+    m.add_line(Line(line, 'blue', 3))
+    image = m.render()
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format='PNG')
+    return img_byte_arr.getvalue()
 
 def elev_summary(ride_df: pandas.DataFrame, num_samples: int):
     n = min(len(ride_df.altitude), num_samples)
@@ -131,3 +145,13 @@ def get_activity_response(
     if include_raw_data:
         ans.activity_data = activity_df.to_json()
     return ans
+
+def fetch_activity_df(activity_id: str, session: Session):
+    q = select(model.ActivityTable).where(
+        model.ActivityTable.activity_id == activity_id)
+    activity = session.exec(q).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    activity_df = get_activity_raw_df(activity)
+    activity_df.timestamp = activity_df.timestamp.apply(lambda x: x.timestamp() if x else None)
+    return activity_df

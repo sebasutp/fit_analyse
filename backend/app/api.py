@@ -8,8 +8,8 @@ from typing import Annotated
 import fitparse
 import msgpack
 
-from fastapi import Body, Depends, FastAPI, HTTPException, File, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import Body, Depends, FastAPI, HTTPException, File
+from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
@@ -107,19 +107,22 @@ async def get_activity(
     activity_response = model_helpers.get_activity_response(activity, include_raw_data=False)
     return activity_response
 
+@app_obj.get("/activity_map/{activity_id}")
+async def get_activity_map(
+    *,
+    session: Session = Depends(model_helpers.get_db_session),
+    activity_id: str):
+    activity_df = model_helpers.fetch_activity_df(activity_id, session)
+    img = model_helpers.get_activity_map(ride_df=activity_df, num_samples=200)
+    return Response(img, media_type="image/png")
+
 @app_obj.get("/activity/{activity_id}/raw")
 async def get_activity_raw_columns(
     *,
     session: Session = Depends(model_helpers.get_db_session),
     activity_id: str,
     columns: str = None):
-    q = select(model.ActivityTable).where(
-        model.ActivityTable.activity_id == activity_id)
-    activity = session.exec(q).first()
-    if not activity:
-        raise HTTPException(status_code=404, detail="Activity not found")
-    activity_df = model_helpers.get_activity_raw_df(activity)
-    activity_df.timestamp = activity_df.timestamp.apply(lambda x: x.timestamp() if x else None)
+    activity_df = model_helpers.fetch_activity_df(activity_id, session)
     activity_dict = activity_df.to_dict(orient="list")
     if columns:
         column_list = columns.split(",")
