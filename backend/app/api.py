@@ -28,9 +28,6 @@ app_obj.add_middleware(
 )
 
 
-# @app_obj.on_event("startup")
-# def on_startup():
-#     model_helpers.create_db_and_tables()
 
 # route handlers
 

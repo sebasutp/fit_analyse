@@ -19,10 +19,6 @@ def get_db_session():
     with Session(engine) as session:
         yield session
 
-def create_db_and_tables():
-    """Creates database with schema."""
-    SQLModel.metadata.create_all(engine)
-
 
 def extract_data_to_dataframe(fitfile):
     data = []
