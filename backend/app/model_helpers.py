@@ -1,4 +1,4 @@
-import json
+import os
 import io
 import numpy as np
 import pandas
@@ -6,6 +6,18 @@ from app import model
 import pyarrow.feather as feather
 
 from typing import Sequence
+from sqlmodel import create_engine, Session, SQLModel
+
+connect_args = {"check_same_thread": False}
+engine = create_engine(
+    os.getenv("DB_URL"),
+    echo=True,
+    connect_args=connect_args)
+
+def get_db_session():
+    """Returns DB session."""
+    with Session(engine) as session:
+        yield session
 
 
 def extract_data_to_dataframe(fitfile):

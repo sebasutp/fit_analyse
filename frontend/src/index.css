@@ -8,6 +8,16 @@
   gap: 10px; /* Gap between cards */
 }
 
+.row-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.col-container {
+  display: flex;
+  flex-direction: column;
+}
+
 .activity-container {
   border-bottom: 1px solid #ccc;
   padding: 10px;

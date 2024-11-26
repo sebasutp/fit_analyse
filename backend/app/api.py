@@ -28,9 +28,6 @@ app_obj.add_middleware(
 )
 
 
-@app_obj.on_event("startup")
-def on_startup():
-    model.create_db_and_tables()
 
 # route handlers
 
@@ -38,7 +35,7 @@ def on_startup():
 @app_obj.post("/token")
 async def login(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        session: Session = Depends(model.get_db_session)):
+        session: Session = Depends(model_helpers.get_db_session)):
     """
     Login API to authenticate a user and generate an access token.
 
@@ -53,7 +50,7 @@ async def login(
             user credentials.
             Retrieved from the request body using Depends.
         session: A SQLAlchemy database session object. Obtained using
-            Depends from `model.get_db_session`.
+            Depends from `get_db_session`.
 
     Raises:
         HTTPException: If the username or password is incorrect (400 Bad Request).
@@ -76,14 +73,18 @@ async def login(
 @app_obj.post("/upload_activity", response_model=model.ActivityBase)
 async def upload_activity(
     *,
-    session: Session = Depends(model.get_db_session),
+    session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
     file: Annotated[bytes, File()]):
     ride_df = model_helpers.extract_data_to_dataframe(fitparse.FitFile(file))
+    summary = model_helpers.compute_activity_summary(ride_df=ride_df)
     activity_db = model.ActivityTable(
         activity_id=crypto.generate_random_base64_string(16),
         name="Ride",
         owner_id=current_user_id.id,
+        distance=summary.distance,
+        active_time=summary.active_time,
+        elevation_gain=summary.elevation_gain,
         date=ride_df.timestamp.iloc[0],
         last_modified=datetime.now(),
         data=model_helpers.serialize_dataframe(ride_df)
@@ -96,7 +97,7 @@ async def upload_activity(
 @app_obj.get("/activity/{activity_id}", response_model=model.ActivityResponse)
 async def get_activity(
     *,
-    session: Session = Depends(model.get_db_session),
+    session: Session = Depends(model_helpers.get_db_session),
     activity_id: str):
     q = select(model.ActivityTable).where(
         model.ActivityTable.activity_id == activity_id)
@@ -109,7 +110,7 @@ async def get_activity(
 @app_obj.get("/activity/{activity_id}/raw")
 async def get_activity_raw_columns(
     *,
-    session: Session = Depends(model.get_db_session),
+    session: Session = Depends(model_helpers.get_db_session),
     activity_id: str,
     columns: str = None):
     q = select(model.ActivityTable).where(
@@ -139,7 +140,7 @@ async def get_activity_raw_columns(
 @app_obj.get("/activities", response_model=list[model.ActivityBase])
 async def get_activities(
     *,
-    session: Session = Depends(model.get_db_session),
+    session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
     from_timestamp: datetime = None):
     q = select(model.ActivityTable).where(
@@ -151,7 +152,7 @@ async def get_activities(
 @app_obj.patch("/activity/{activity_id}", response_model=model.ActivityBase)
 async def update_activity(
     *,
-    session: Session = Depends(model.get_db_session),
+    session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
     activity_id: str,
     activity_update: model.ActivityUpdate):
@@ -168,7 +169,7 @@ async def update_activity(
 @app_obj.post("/user/signup", tags=["user"])
 async def create_user(
     *,
-    session: Session = Depends(model.get_db_session),
+    session: Session = Depends(model_helpers.get_db_session),
     user: model.UserCreate = Body(...)):
     """
     Creates a new user account.

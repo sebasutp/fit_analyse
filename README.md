@@ -28,7 +28,14 @@ Make sure to use Python3.10 or newer.
     PORT=8082
     ```
 
-5. Run the app:
+5. If you use a different DB_URL, please update it also in `./backend/alembic.ini`. Then
+create the database using:
+
+    ```sh
+    (venv)$ alembic upgrade head
+    ```
+
+6. Run the app:
 
     ```sh
     (venv)$ python main.py
