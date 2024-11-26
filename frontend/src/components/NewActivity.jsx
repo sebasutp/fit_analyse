@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { GetToken, ParseBackendResponse } from './Utils';
 
 function NewActivity() {
+  const [is_loading, setIsLoading] = useState(false);
 
   const token = GetToken();
   const navigate = useNavigate();
 
   const uploadFitFile = (file) => {
     if (!file) return;
+    setIsLoading(true);
     const formData = new FormData();
     formData.append('file', file);
     const url = `${import.meta.env.VITE_BACKEND_URL}/upload_activity`;
@@ -25,6 +27,7 @@ function NewActivity() {
     .then((response) => ParseBackendResponse(response, navigate))
     .then((data) => {
       console.log("Successfully added activity: ", data);
+      setIsLoading(false);
       navigate(`/activity/${data.activity_id}`);
     })
     .catch(error => {
@@ -34,8 +37,17 @@ function NewActivity() {
 
   return (
     <div>
-      <label>Upload Fit file</label>
-      <input type="file" onChange={(e) => uploadFitFile(e.target.files[0])} />
+      {is_loading ? 
+        (
+          <img src='/assets/loading.gif' alt="Loading..." />
+        ) : 
+        (
+          <div>
+            <label>Upload Fit file</label>
+            <input type="file" onChange={(e) => uploadFitFile(e.target.files[0])} />
+          </div>
+        )
+      }
     </div>
   );
 }

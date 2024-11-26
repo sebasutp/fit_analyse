@@ -8,7 +8,7 @@ from typing import Annotated, Union
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import select
+from sqlmodel import select, Session
 
 from app import model
 from app.auth import crypto
@@ -19,7 +19,7 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def check_and_get_user(data: model.UserLogin, session: model.Session):
+def check_and_get_user(data: model.UserLogin, session: Session):
     """ Returns the User object if the credentials are correct or None.
     """
     q = select(model.User).where(model.User.email == data.email)

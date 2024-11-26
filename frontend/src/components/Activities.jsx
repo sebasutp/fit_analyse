@@ -48,8 +48,7 @@ function Activities() {
         (
           <div>
             <NewActivity />
-            <div className="flex flex-col items-center justify-center mt-24">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+            <div className="col-container">
                 {activities.map((activity, i) => (
                   <ActivityCard
                     key={i}
@@ -57,7 +56,6 @@ function Activities() {
                   />
                 ))
                 }
-              </div>
             </div>
           </div>
         )

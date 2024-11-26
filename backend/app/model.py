@@ -6,22 +6,7 @@ from datetime import datetime
 from typing import Optional, Union, Sequence
 
 from pydantic import BaseModel, EmailStr
-from sqlmodel import Field, Session, SQLModel, create_engine
-
-connect_args = {"check_same_thread": False}
-engine = create_engine(
-    os.getenv("DB_URL"),
-    echo=True,
-    connect_args=connect_args)
-
-def get_db_session():
-    """Returns DB session."""
-    with Session(engine) as session:
-        yield session
-
-def create_db_and_tables():
-    """Creates database with schema."""
-    SQLModel.metadata.create_all(engine)
+from sqlmodel import Field, SQLModel
 
 class UserLogin(SQLModel):
     email: EmailStr = Field(...)
@@ -89,6 +74,9 @@ class ActivityBase(SQLModel):
     activity_id: str = Field(...)
     name: Optional[str] = Field(...)
     owner_id: int = Field(default=None, foreign_key="user.id")
+    distance: Optional[float] = Field(...)
+    active_time: Optional[float] = Field(...)
+    elevation_gain: Optional[float] = Field(...)
     #gear_id: int = Field(default=None, foreign_key="gear.id")
     date: datetime = Field(...)
     last_modified: datetime = Field(...)

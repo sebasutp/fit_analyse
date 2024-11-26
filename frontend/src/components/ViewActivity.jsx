@@ -4,6 +4,7 @@ import msgpack from 'msgpack-lite';
 import PowerCard from './power/PowerCard'
 import { ElevCard } from './activity/ElevationCard';
 import {Metric, MetricBox} from './MetricComponents'
+import {getElapsedTime} from './Utils'
 
 function ViewActivity() {
   const { id } = useParams();
@@ -12,20 +13,7 @@ function ViewActivity() {
   const [is_loading_main_activity, setIsLoadingMainActivity] = useState(true);
   //const [is_loading_raw_activity, setIsLoadingRawActivity] = useState(true);
 
-  function getElapsedTime(seconds) {
-    let x = seconds;
-    const sec = x % 60;
-    x -= sec;
-    x = x / 60;
-    const min = x % 60;
-    x -= min;
-    x = x / 60;
-    const hours = x;
-    return [
-      `${hours.toString().padStart(2, '0')}`,
-      `${min.toString().padStart(2, '0')}`,
-      `${sec.toString().padStart(2, '0')}`].join(":")
-  }
+  
 
   useEffect(() => {
     setIsLoadingMainActivity(true);
