@@ -83,7 +83,7 @@ def compute_elevation_gain(df: pandas.DataFrame, tolerance: float, min_elev: flo
 
 def subsample_timeseries(time_series: pandas.Series, num_samples: int):
     indices = np.linspace(0, len(time_series) - 1, num_samples, dtype=int)
-    return time_series.to_numpy()[indices]
+    return time_series.to_numpy()[indices].tolist()
 
 def get_activity_map(ride_df: pandas.DataFrame, num_samples: int):
     df = ride_df.dropna(subset=['position_lat', 'position_long'])
