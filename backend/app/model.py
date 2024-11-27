@@ -89,6 +89,7 @@ class ActivityResponse(BaseModel):
 class ActivityTable(ActivityBase, table=True):
     activity_id: str = Field(default=None, primary_key=True)
     data: bytes = Field(...)
+    static_map: Optional[bytes] = Field(...)
 
 class ActivityUpdate(BaseModel):
     name: Optional[str] = None

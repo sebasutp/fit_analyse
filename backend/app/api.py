@@ -112,9 +112,14 @@ async def get_activity_map(
     *,
     session: Session = Depends(model_helpers.get_db_session),
     activity_id: str):
-    activity_df = model_helpers.fetch_activity_df(activity_id, session)
-    img = model_helpers.get_activity_map(ride_df=activity_df, num_samples=200)
-    return Response(img, media_type="image/png")
+    activity = model_helpers.fetch_activity(activity_id, session)
+    if not activity.static_map:
+        activity_df = model_helpers.get_activity_df(activity)
+        activity.static_map = model_helpers.get_activity_map(ride_df=activity_df, num_samples=200)
+        # Save the map for a future call
+        session.add(activity)
+        session.commit()
+    return Response(activity.static_map, media_type="image/png")
 
 @app_obj.get("/activity/{activity_id}/raw")
 async def get_activity_raw_columns(

@@ -46,16 +46,21 @@ function ViewActivity() {
         ) : 
         ( 
           <div className="flex flex-col items-center justify-center mt-8 px-8">
-            <div className="activity-container">
-              <h1 className="activity-title">{activity.activity_base.name}</h1>
-              <p className="activity-date">{activity.activity_base.date}</p>
+            <div className="row-container">
+              <div className="activity-container">
+                <h1 className="activity-title">{activity.activity_base.name}</h1>
+                <p className="activity-date">{activity.activity_base.date}</p>
+              </div>
+              <div className="two-col-container">
+                <Metric name="Distance" value={activity.activity_analysis.distance} unit="km" decimalPlaces={1}/>
+                <Metric name="Average Speed" value={activity.activity_analysis.average_speed} unit="km/h" decimalPlaces={1}/>
+                <Metric name="Elevation gain" value={activity.activity_analysis.elevation_gain} unit="m" />
+                <MetricBox name="Elapsed time" value={getElapsedTime(activity.activity_analysis.total_elapsed_time)} />
+              </div>
             </div>
-            <div className="two-col-container">
-              <Metric name="Distance" value={activity.activity_analysis.distance} unit="km" decimalPlaces={1}/>
-              <Metric name="Average Speed" value={activity.activity_analysis.average_speed} unit="km/h" decimalPlaces={1}/>
-              <Metric name="Elevation gain" value={activity.activity_analysis.elevation_gain} unit="m" />
-              <MetricBox name="Elapsed time" value={getElapsedTime(activity.activity_analysis.total_elapsed_time)} />
-            </div>
+            
+            <img src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_base.activity_id}`} />
+            
             <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
             <PowerCard powerSummary={activity.activity_analysis.power_summary} />
           </div>

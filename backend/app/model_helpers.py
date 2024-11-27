@@ -146,12 +146,19 @@ def get_activity_response(
         ans.activity_data = activity_df.to_json()
     return ans
 
-def fetch_activity_df(activity_id: str, session: Session):
+def fetch_activity(activity_id: str, session: Session):
     q = select(model.ActivityTable).where(
         model.ActivityTable.activity_id == activity_id)
     activity = session.exec(q).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
+    return activity
+
+def get_activity_df(activity: model.ActivityTable):
     activity_df = get_activity_raw_df(activity)
     activity_df.timestamp = activity_df.timestamp.apply(lambda x: x.timestamp() if x else None)
     return activity_df
+
+def fetch_activity_df(activity_id: str, session: Session):
+    activity = fetch_activity(activity_id, session)
+    return get_activity_df(activity)
