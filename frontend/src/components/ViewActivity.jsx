@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import msgpack from 'msgpack-lite';
 import PowerCard from './power/PowerCard'
 import { ElevCard } from './activity/ElevationCard';
 import {Metric, MetricBox} from './MetricComponents'
@@ -9,11 +8,7 @@ import {getElapsedTime} from './Utils'
 function ViewActivity() {
   const { id } = useParams();
   const [activity, setActivity] = useState({});
-  //const [activityRawData, setActivityRawData] = useState({});
   const [is_loading_main_activity, setIsLoadingMainActivity] = useState(true);
-  //const [is_loading_raw_activity, setIsLoadingRawActivity] = useState(true);
-
-  
 
   useEffect(() => {
     setIsLoadingMainActivity(true);
@@ -27,15 +22,6 @@ function ViewActivity() {
       .catch((error) => {
         console.error('Error fetching main activity details:', error);
       });
-    /*setIsLoadingRawActivity(true);
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/activity/${id}/raw?columns=power`)
-      .then((response) => response.arrayBuffer())
-      .then((arrayBuffer) => {
-        const decodedArray = msgpack.decode(new Uint8Array(arrayBuffer));
-        console.log(decodedArray);
-        setActivityRawData(decodedArray);
-        setIsLoadingRawActivity(false);
-      })*/
   }, [id]);
 
   return (
@@ -58,8 +44,9 @@ function ViewActivity() {
                 <MetricBox name="Elapsed time" value={getElapsedTime(activity.activity_analysis.total_elapsed_time)} />
               </div>
             </div>
-            
-            <img src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_base.activity_id}`} />
+            <a href={`../map/${activity.activity_base.activity_id}`}>
+              <img src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_base.activity_id}`} />
+            </a>
             
             <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
             <PowerCard powerSummary={activity.activity_analysis.power_summary} />
