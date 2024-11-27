@@ -3,6 +3,7 @@ import Login from './components/Login.jsx'
 import ViewActivity from './components/ViewActivity.jsx';
 import NewActivity from './components/NewActivity.jsx';
 import Activities from './components/Activities.jsx'
+import RouteMap from './components/RouteMap.jsx';
 // import NavMenu from './components/NavMenu.jsx';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
 
         <Route path="/activity/:id" element={<ViewActivity />} />
         <Route path="/activity/new" element={<NewActivity />} />
+        <Route path="/map/:id" element={<RouteMap />} />
       </Routes>
     </div>
    )
