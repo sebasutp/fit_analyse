@@ -28,7 +28,6 @@ app_obj.add_middleware(
 )
 
 
-
 # route handlers
 
 
@@ -67,7 +66,6 @@ async def login(
     time_out = int(os.getenv("TOKEN_TIMEOUT")) or 30
     token = auth_handler.create_access_token(db_user, timedelta(minutes=time_out))
     return model.Token(access_token=token, token_type="bearer")
-
 
 
 @app_obj.post("/upload_activity", response_model=model.ActivityBase)
@@ -157,13 +155,15 @@ async def get_activities(
         q = q.where(model.ActivityTable.last_modified > from_timestamp)
     return session.exec(q)
 
+
 @app_obj.patch("/activity/{activity_id}", response_model=model.ActivityBase)
 async def update_activity(
     *,
     session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
     activity_id: str,
-    activity_update: model.ActivityUpdate):
+    activity_update: model.ActivityUpdate = Body(...)):
+
     q = select(model.ActivityTable).where(model.ActivityTable.activity_id == activity_id)
     activity_db = session.exec(q).one()
     if activity_db.owner_id != current_user_id.id:
