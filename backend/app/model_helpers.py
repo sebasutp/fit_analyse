@@ -86,6 +86,8 @@ def subsample_timeseries(time_series: pandas.Series, num_samples: int):
     return time_series.to_numpy()[indices].tolist()
 
 def get_activity_map(ride_df: pandas.DataFrame, num_samples: int):
+    """ Creates a static map of an activity.
+    """
     df = ride_df.dropna(subset=['position_lat', 'position_long'])
     w = int(os.getenv("STATIC_MAP_W", "400"))
     h = int(os.getenv("STATIC_MAP_H", "300"))
