@@ -177,8 +177,14 @@ function ViewActivity() {
             />
           </a>
 
-          <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
-          <PowerCard powerSummary={activity.activity_analysis.power_summary} />
+          {activity?.activity_analysis?.elev_summary && (
+            <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
+          )}
+          {activity?.activity_analysis?.power_summary && (
+            <PowerCard
+              powerSummary={activity.activity_analysis.power_summary}
+            />
+          )}
         </div>
       )}
     </div>
