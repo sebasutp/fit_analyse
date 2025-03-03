@@ -113,11 +113,13 @@ def elev_summary(ride_df: pandas.DataFrame, num_samples: int):
 
 def compute_activity_summary(ride_df: pandas.DataFrame, num_samples: int = 200):
     total_time = len(ride_df)
+    elevation_gain = compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns else 0
+
     summary = model.ActivitySummary(
         distance=ride_df['distance'].iloc[-1] / 1000,
         total_elapsed_time=(ride_df['timestamp'].iloc[-1] - ride_df['timestamp'][0]).seconds,
         active_time=total_time,
-        elevation_gain=compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0),
+        elevation_gain=elevation_gain,
         average_speed=ride_df['speed'].mean() * 3.6  # From m/s to km/h
     )
     if 'power' in ride_df.columns:
