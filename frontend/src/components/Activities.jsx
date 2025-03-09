@@ -13,7 +13,7 @@ function Activities() {
   
   const loadActivities = (token) => {
     setIsLoading(true);
-    const url = `${import.meta.env.VITE_BACKEND_URL}/activities/`;
+    const url = `${import.meta.env.VITE_BACKEND_URL}/activities`;
     fetch(url, {
       method: 'GET',
       headers: {
