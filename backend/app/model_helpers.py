@@ -1,14 +1,17 @@
 import os
 import io
 import numpy as np
-import pandas
+import pandas as pd
 from app import model
 import pyarrow.feather as feather
+import gpxpy
+import gpxpy.gpx
 
 from typing import Sequence
 from sqlmodel import create_engine, Session, select
 from fastapi import HTTPException
 from staticmap import StaticMap, Line
+from fastapi.responses import Response
 
 connect_args = {"check_same_thread": False}
 engine = create_engine(
@@ -31,18 +34,18 @@ def extract_data_to_dataframe(fitfile):
                 row_data[field.name] = field.value
             data.append(row_data)
 
-    df = pandas.DataFrame(data)
+    df = pd.DataFrame(data)
     if 'position_lat' in df.columns and 'position_long' in df.columns:    
         position_scale = (1 << 32) / 360.0
         df['position_lat'] = df['position_lat'] / position_scale
         df['position_long'] = df['position_long'] / position_scale
     return df
 
-def remove_columns(df: pandas.DataFrame, cols: Sequence[str]):
+def remove_columns(df: pd.DataFrame, cols: Sequence[str]):
     keep_cols = [x for x in df.columns if not x in set(cols)]
     return df[keep_cols]
 
-def serialize_dataframe(df: pandas.DataFrame):
+def serialize_dataframe(df: pd.DataFrame):
     rem_cols = ['left_right_balance']
     with io.BytesIO() as buffer:
         remove_columns(df, rem_cols).to_feather(buffer)
@@ -52,7 +55,7 @@ def serialize_dataframe(df: pandas.DataFrame):
 def deserialize_dataframe(serialized: bytes):
     return feather.read_feather(io.BytesIO(serialized))
 
-def compute_elevation_gain_intervals(df: pandas.DataFrame, tolerance=1.0, min_elev=1.0):
+def compute_elevation_gain_intervals(df: pd.DataFrame, tolerance=1.0, min_elev=1.0):
     altitude_series = df.altitude.dropna()
     altitude = altitude_series.to_list()
     original_ix = altitude_series.index
@@ -78,15 +81,15 @@ def compute_elevation_gain_intervals(df: pandas.DataFrame, tolerance=1.0, min_el
             high_ix = i
     return climbs
 
-def compute_elevation_gain(df: pandas.DataFrame, tolerance: float, min_elev: float):
+def compute_elevation_gain(df: pd.DataFrame, tolerance: float, min_elev: float):
     segments = compute_elevation_gain_intervals(df, tolerance, min_elev)
     return sum(map(lambda x: x.elevation, segments))
 
-def subsample_timeseries(time_series: pandas.Series, num_samples: int):
+def subsample_timeseries(time_series: pd.Series, num_samples: int):
     indices = np.linspace(0, len(time_series) - 1, num_samples, dtype=int)
     return time_series.to_numpy()[indices].tolist()
 
-def get_activity_map(ride_df: pandas.DataFrame, num_samples: int):
+def get_activity_map(ride_df: pd.DataFrame, num_samples: int):
     """ Creates a static map of an activity.
     """
     if not 'position_lat' in ride_df.columns or not 'position_long' in ride_df.columns:
@@ -104,7 +107,7 @@ def get_activity_map(ride_df: pandas.DataFrame, num_samples: int):
     image.save(img_byte_arr, format='PNG')
     return img_byte_arr.getvalue()
 
-def elev_summary(ride_df: pandas.DataFrame, num_samples: int):
+def elev_summary(ride_df: pd.DataFrame, num_samples: int):
     n = min(len(ride_df.altitude), num_samples)
     summary = model.ElevationSummary(
         lowest=ride_df.altitude.min(),
@@ -114,7 +117,7 @@ def elev_summary(ride_df: pandas.DataFrame, num_samples: int):
     )
     return summary
 
-def compute_activity_summary(ride_df: pandas.DataFrame, num_samples: int = 200):
+def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200):
     total_time = len(ride_df)
     elevation_gain = compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns else 0
 
@@ -174,3 +177,49 @@ def get_activity_df(activity: model.ActivityTable):
 def fetch_activity_df(activity_id: str, session: Session):
     activity = fetch_activity(activity_id, session)
     return get_activity_df(activity)
+
+def get_activity_gpx(ride_df: pd.DataFrame):
+    """
+    Generates a GPX file content from a DataFrame containing ride data using gpxpy.
+
+    Args:
+        ride_df: DataFrame with 'timestamp', 'position_lat', and 'position_long' columns.
+
+    Returns:
+        GPX file content as a string.
+    """
+    if not has_gps_data(ride_df):
+        raise HTTPException(status_code=404, detail="GPS data not available")
+
+    # Filter out rows with missing lat/long
+    valid_rows = ride_df.dropna(subset=['position_lat', 'position_long'])
+
+    if valid_rows.empty:
+        gpx = gpxpy.gpx.GPX()
+        return gpx.to_xml()
+
+    gpx = gpxpy.gpx.GPX()
+    gpx_track = gpxpy.gpx.GPXTrack()
+    gpx.tracks.append(gpx_track)
+    gpx_segment = gpxpy.gpx.GPXTrackSegment()
+    gpx_track.segments.append(gpx_segment)
+
+    lat = valid_rows['position_lat'].to_numpy()
+    long = valid_rows['position_long'].to_numpy()
+    # if 'altitude' in valid_rows.columns:
+    #     alt = valid_rows['altitude'].to_numpy()
+    #     has_alt = ~np.isnan(alt)
+    #     print(has_alt.shape)
+    # else:
+    #     alt = None
+
+    for index in range(len(valid_rows)):
+        gpx_point = gpxpy.gpx.GPXTrackPoint(
+            latitude=lat[index],
+            longitude=long[index]
+        )
+        # if alt and has_alt[index]:
+        #     gpx_point.elevation = alt[index]
+        gpx_segment.points.append(gpx_point)
+
+    return gpx.to_xml()
