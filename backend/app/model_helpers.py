@@ -32,9 +32,10 @@ def extract_data_to_dataframe(fitfile):
             data.append(row_data)
 
     df = pandas.DataFrame(data)
-    position_scale = (1 << 32) / 360.0
-    df['position_lat'] = df['position_lat'] / position_scale
-    df['position_long'] = df['position_long'] / position_scale
+    if 'position_lat' in df.columns and 'position_long' in df.columns:    
+        position_scale = (1 << 32) / 360.0
+        df['position_lat'] = df['position_lat'] / position_scale
+        df['position_long'] = df['position_long'] / position_scale
     return df
 
 def remove_columns(df: pandas.DataFrame, cols: Sequence[str]):
@@ -88,6 +89,8 @@ def subsample_timeseries(time_series: pandas.Series, num_samples: int):
 def get_activity_map(ride_df: pandas.DataFrame, num_samples: int):
     """ Creates a static map of an activity.
     """
+    if not 'position_lat' in ride_df.columns or not 'position_long' in ride_df.columns:
+        return None
     df = ride_df.dropna(subset=['position_lat', 'position_long'])
     w = int(os.getenv("STATIC_MAP_W", "400"))
     h = int(os.getenv("STATIC_MAP_H", "300"))
@@ -138,6 +141,10 @@ def compute_activity_summary(ride_df: pandas.DataFrame, num_samples: int = 200):
 def get_activity_raw_df(activity_db: model.ActivityTable):
     return deserialize_dataframe(activity_db.data)
 
+def has_gps_data(activity_df):
+    return 'position_lat' in activity_df.columns and \
+        'position_long' in activity_df.columns
+
 def get_activity_response(
         activity_db: model.ActivityTable,
         include_raw_data: bool = False):
@@ -145,6 +152,7 @@ def get_activity_response(
     ans = model.ActivityResponse(
         activity_base=activity_db,
         activity_analysis=compute_activity_summary(activity_df),
+        has_gps_data=has_gps_data(activity_df)
     )
     if include_raw_data:
         ans.activity_data = activity_df.to_json()

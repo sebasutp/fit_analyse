@@ -169,13 +169,15 @@ function ViewActivity() {
               />
             </div>
           </div>
-          <a href={`../map/${activity.activity_base.activity_id}`}>
-            <img
-              src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${
-                activity.activity_base.activity_id
-              }`}
-            />
-          </a>
+          {activity?.has_gps_data && (
+            <a href={`../map/${activity.activity_base.activity_id}`}>
+              <img
+                src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${
+                  activity.activity_base.activity_id
+                }`}
+              />
+            </a>
+          )}
 
           {activity?.activity_analysis?.elev_summary && (
             <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
