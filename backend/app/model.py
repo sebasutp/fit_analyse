@@ -85,6 +85,8 @@ class ActivityResponse(BaseModel):
     activity_base: Optional[ActivityBase] = None
     activity_analysis: Optional[ActivitySummary] = None
     activity_data: Optional[str] = None
+    has_gps_data: bool = False
+    
 
 class ActivityTable(ActivityBase, table=True):
     activity_id: str = Field(default=None, primary_key=True)

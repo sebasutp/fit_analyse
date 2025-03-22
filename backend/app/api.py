@@ -114,6 +114,8 @@ async def get_activity_map(
     if not activity.static_map:
         activity_df = model_helpers.get_activity_df(activity)
         activity.static_map = model_helpers.get_activity_map(ride_df=activity_df, num_samples=200)
+        if not activity.static_map:
+            raise HTTPException(status_code=404, detail="GPS data not available")
         # Save the map for a future call
         session.add(activity)
         session.commit()
