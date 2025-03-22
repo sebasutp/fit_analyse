@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { FaPencil } from "react-icons/fa6";
+import { FaPencil, FaDownload } from "react-icons/fa6";
 
 import PowerCard from './power/PowerCard'
 import { ElevCard } from './activity/ElevationCard';
@@ -135,9 +135,11 @@ function ViewActivity() {
                 </div>
               ) : (
                 <>
-                  <button className="edit-button" onClick={onClickEdit}>
-                    <FaPencil />
-                  </button>
+                  <div className="flex items-center space-x-4">
+                    <button className="edit-button" onClick={onClickEdit}>
+                      <FaPencil />
+                    </button>
+                  </div>
                   <h1 className="activity-title">{currentActivityName}</h1>
                   <p className="activity-date">{currentActivityDate}</p>
                 </>
@@ -170,13 +172,26 @@ function ViewActivity() {
             </div>
           </div>
           {activity?.has_gps_data && (
-            <a href={`../map/${activity.activity_base.activity_id}`}>
-              <img
-                src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${
-                  activity.activity_base.activity_id
-                }`}
-              />
-            </a>
+            <div>
+              <a href={`../map/${activity.activity_base.activity_id}`}>
+                <img
+                  src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${
+                    activity.activity_base.activity_id
+                  }`}
+                  alt="Activity Map"
+                />
+              </a>
+              <div className="flex flex-row items-center">
+                GPX File:
+                <a
+                  href={`${import.meta.env.VITE_BACKEND_URL}/activity/${id}/gpx`}
+                  className="download-button"
+                  download
+                >
+                  <FaDownload />
+                </a>
+              </div>
+            </div>
           )}
 
           {activity?.activity_analysis?.elev_summary && (

@@ -9,7 +9,7 @@ import fitparse
 import msgpack
 
 from fastapi import Body, Depends, FastAPI, HTTPException, File
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
@@ -120,6 +120,24 @@ async def get_activity_map(
         session.add(activity)
         session.commit()
     return Response(activity.static_map, media_type="image/png")
+
+@app_obj.get("/activity/{activity_id}/gpx")
+async def get_activity_gpx_route(
+    *,
+    session: Session = Depends(model_helpers.get_db_session),
+    activity_id: str):
+    activity = model_helpers.fetch_activity(activity_id, session)
+    activity_df = model_helpers.get_activity_df(activity)
+    gpx_content = model_helpers.get_activity_gpx(activity_df)
+
+    def iterfile():
+        yield gpx_content
+
+    return StreamingResponse(
+        iterfile(),
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": f"attachment; filename={activity_id}.gpx"}
+    )
 
 @app_obj.get("/activity/{activity_id}/raw")
 async def get_activity_raw_columns(
