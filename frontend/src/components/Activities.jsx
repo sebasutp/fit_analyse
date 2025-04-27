@@ -1,7 +1,7 @@
 import { useState, useEffect, act } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewActivity from './NewActivity'
-import { GetToken, ParseBackendResponse } from './Utils';
+import { GetToken, navLogin, ParseBackendResponse } from './Utils';
 import { ActivityCard } from './activity/ActivityCard';
 
 function Activities() {
@@ -33,7 +33,7 @@ function Activities() {
   useEffect(() => {
     if (!token) {
       console.log("Token not found redirecting to /login");
-      navigate("/login");
+      navLogin(navigate);
     } else {
       loadActivities(token)
     }

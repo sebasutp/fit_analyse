@@ -1,9 +1,31 @@
 
+// Use external login if available. Otherwise, we built in login
+export function navLogin(navigate) {
+  const authServiceLoginUrl = import.meta.env.VITE_AUTH_SERVICE_LOGIN_URL;
+  if (authServiceLoginUrl) {
+    // Where the auth service should redirect BACK TO after successful login
+    const clientRedirectUri = window.location.origin + '/auth/callback'; 
+    // The scope this client app requires
+    const clientScope = import.meta.env.VITE_REQUIRED_APP_SCOPE;
+
+    const params = new URLSearchParams();
+    params.append('redirect', clientRedirectUri);
+    if (clientScope) {
+      params.append('client_scope', clientScope);
+    }
+    // Redirect the user's browser
+    window.location.href = `${authServiceLoginUrl}?${params.toString()}`;
+  } else {
+    navigate("/login");
+  }
+}
+
 export function ParseBackendResponse(response, navigate) {
   if (!response.ok) {
     if (response.status == 401) {
       // The token is invalid
-      navigate("/login");
+      //localStorage.removeItem('token');
+      //navLogin(navigate);
     } else {
       console.error("API error: ", response);
     }

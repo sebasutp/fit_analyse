@@ -4,6 +4,7 @@ import ViewActivity from './components/ViewActivity.jsx';
 import NewActivity from './components/NewActivity.jsx';
 import Activities from './components/Activities.jsx'
 import RouteMap from './components/RouteMap.jsx';
+import AuthCallback from './pages/AuthCallback.jsx';
 // import NavMenu from './components/NavMenu.jsx';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         {/* Public Route (accessible without login) */}
         <Route path="/login" element={<Login /> } />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Protected Route (requires login) */}
         <Route path="/" element={<Activities />} />

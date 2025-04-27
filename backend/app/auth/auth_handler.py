@@ -64,7 +64,9 @@ async def get_current_user_id(token: Annotated[str, Depends(oauth2_scheme)]):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    print(token)
     decoded_token = decode_jwt(token)
+    print(decoded_token)
     if not decoded_token:
         raise credentials_exception
     user_id = model.UserId(**decoded_token['sub'])
