@@ -77,9 +77,15 @@ async def upload_activity(
     file: Annotated[bytes, File()]):
     print("Uploading activity")
     start_t = time.time()
-    #ride_df = model_helpers.extract_data_to_dataframe(fitparse.FitFile(file))
-    ride_df = model_helpers.extract_data_to_dataframe_fitdecode(file)
+    decoded_fit = fitparse.FitFile(file)
+    N = len(decoded_fit.messages)
+    print(f"Number of messages: {N}")
+    end_t_1 = time.time()
+    print(f"Parsing time: {end_t_1 - start_t}")
+    ride_df = model_helpers.extract_data_to_dataframe(decoded_fit)
+    #ride_df = model_helpers.extract_data_to_dataframe_fitdecode(file)
     end_t = time.time()
+    print(f"Convert to dataframe time: {end_t - end_t_1}")
     print(f"Parsing time: {end_t - start_t}")
     summary = model_helpers.compute_activity_summary(ride_df=ride_df)
     activity_db = model.ActivityTable(
