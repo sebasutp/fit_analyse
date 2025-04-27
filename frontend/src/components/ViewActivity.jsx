@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 
-import { FaPencil, FaDownload } from "react-icons/fa6";
+import { FaPencil, FaDownload, FaTrash } from "react-icons/fa6";
 
 import PowerCard from './power/PowerCard'
 import { ElevCard } from './activity/ElevationCard';
@@ -18,6 +18,7 @@ function ViewActivity() {
   const [editMode, setEditMode] = useState(false);
 
   const token = GetToken();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsLoadingMainActivity(true);
@@ -37,6 +38,28 @@ function ViewActivity() {
 
   const onClickEdit = () => {
     setEditMode(true);
+  }
+
+  const onClickDelete = () => {
+    setIsLoading(true);
+    const url = `${import.meta.env.VITE_BACKEND_URL}/activity/${id}`;
+    // Call delete activity endpoint
+    fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        if (response.ok) {
+          setIsLoading(false);
+          navigate("/");
+        }
+      })
+      .catch((error) => {
+        console.error("Error deleting the activity:", error);
+      });
+    setIsLoading(false);
   }
 
   const onClickCancel = () => {
@@ -138,6 +161,9 @@ function ViewActivity() {
                   <div className="flex items-center space-x-4">
                     <button className="edit-button" onClick={onClickEdit}>
                       <FaPencil />
+                    </button>
+                    <button className="delete-button" onClick={onClickDelete} disabled={isLoading}>
+                      <FaTrash />
                     </button>
                   </div>
                   <h1 className="activity-title">{currentActivityName}</h1>

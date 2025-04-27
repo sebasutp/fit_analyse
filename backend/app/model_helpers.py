@@ -7,7 +7,9 @@ import pyarrow.feather as feather
 import gpxpy
 import gpxpy.gpx
 
-from typing import Sequence
+from typing import Sequence, IO
+import fitdecode
+import tempfile
 from sqlmodel import create_engine, Session, select
 from fastapi import HTTPException
 from staticmap import StaticMap, Line
@@ -40,6 +42,94 @@ def extract_data_to_dataframe(fitfile):
         df['position_lat'] = df['position_lat'] / position_scale
         df['position_long'] = df['position_long'] / position_scale
     return df
+
+def extract_data_to_dataframe_fitdecode(fit_bytes: bytes):
+    """
+    Parses FIT data from a bytes object using fitdecode (faster than fitparse)
+    and extracts 'record' messages into a Pandas DataFrame, applying scaling.
+
+    Args:
+        fit_bytes: The content of the FIT file as a bytes object.
+
+    Returns:
+        pandas.DataFrame: DataFrame containing record message data,
+                          or an empty DataFrame if no records are found or
+                          an error occurs.
+    """
+    data = []
+    if not fit_bytes:
+        print("Received empty bytes object.")
+        return pd.DataFrame()
+
+    try:
+        # Use fitdecode.FitReader directly with bytes using io.BytesIO
+        # Alternatively, fitdecode might handle bytes directly, check docs if BytesIO fails
+        fit_stream = io.BytesIO(fit_bytes)
+
+        print("Starting fitdecode processing...")
+        with fitdecode.FitReader(fit_stream) as reader:
+            for frame in reader:
+                # Check if the frame is a data message and its name is 'record'
+                if isinstance(frame, fitdecode.FitDataMessage) and frame.name == 'record':
+                    row_data = {}
+                    # Iterate through fields in the record message
+                    for field in frame.fields:
+                        # Store field name and value
+                        row_data[field.name] = field.value
+                    if row_data: # Ensure the dictionary is not empty
+                        data.append(row_data)
+        print(f"fitdecode processed {len(data)} records.")
+
+    except fitdecode.FitDecodeError as e:
+        print(f"Error decoding FIT file with fitdecode: {e}")
+        # If in FastAPI context:
+        raise HTTPException(status_code=400, detail=f"Error decoding FIT file: {e}")
+        # Otherwise return empty or raise standard error
+        # return pd.DataFrame()
+    except Exception as e:
+        print(f"An unexpected error occurred during fitdecode processing: {e}")
+        # If in FastAPI context:
+        raise HTTPException(status_code=500, detail=f"Unexpected error processing FIT file: {e}")
+        # Otherwise return empty or raise standard error
+        # return pd.DataFrame()
+
+    if not data:
+        # Return an empty DataFrame if no record messages were found
+        print("No record messages found by fitdecode.")
+        return pd.DataFrame()
+
+    # --- Create DataFrame and apply scaling ---
+    try:
+        df = pd.DataFrame(data)
+        print(f"Created DataFrame with shape {df.shape}")
+
+        # Apply coordinate scaling
+        if 'position_lat' in df.columns and 'position_long' in df.columns:
+            print("Applying coordinate scaling...")
+            lat_not_none = df['position_lat'].notna()
+            lon_not_none = df['position_long'].notna()
+            valid_coords = lat_not_none & lon_not_none
+
+            if valid_coords.any():
+                # FIT standard uses semicircles: (1 << 31) / 180.0
+                position_scale = (1 << 31) / 180.0
+                df.loc[valid_coords, 'position_lat'] = df.loc[valid_coords, 'position_lat'] / position_scale
+                df.loc[valid_coords, 'position_long'] = df.loc[valid_coords, 'position_long'] / position_scale
+                df['position_lat'] = pd.to_numeric(df['position_lat'], errors='coerce')
+                df['position_long'] = pd.to_numeric(df['position_long'], errors='coerce')
+            print("Coordinate scaling applied.")
+
+        # Convert timestamp column if it exists
+        if 'timestamp' in df.columns:
+            print("Converting timestamp column...")
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+            print("Timestamp conversion done.")
+
+        return df
+    except Exception as df_exc:
+         print(f"Error during DataFrame creation or post-processing: {df_exc}")
+         raise HTTPException(status_code=500, detail=f"Error processing parsed data: {df_exc}")
+
 
 def remove_columns(df: pd.DataFrame, cols: Sequence[str]):
     keep_cols = [x for x in df.columns if not x in set(cols)]

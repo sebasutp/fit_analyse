@@ -1,6 +1,7 @@
 """API methods."""
 
 import os
+import time
 import json
 from datetime import timedelta, datetime
 from typing import Annotated
@@ -8,7 +9,7 @@ from typing import Annotated
 import fitparse
 import msgpack
 
-from fastapi import Body, Depends, FastAPI, HTTPException, File
+from fastapi import Body, Depends, FastAPI, HTTPException, File, status
 from fastapi.responses import StreamingResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -74,7 +75,12 @@ async def upload_activity(
     session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
     file: Annotated[bytes, File()]):
-    ride_df = model_helpers.extract_data_to_dataframe(fitparse.FitFile(file))
+    print("Uploading activity")
+    start_t = time.time()
+    #ride_df = model_helpers.extract_data_to_dataframe(fitparse.FitFile(file))
+    ride_df = model_helpers.extract_data_to_dataframe_fitdecode(file)
+    end_t = time.time()
+    print(f"Parsing time: {end_t - start_t}")
     summary = model_helpers.compute_activity_summary(ride_df=ride_df)
     activity_db = model.ActivityTable(
         activity_id=crypto.generate_random_base64_string(16),
@@ -193,6 +199,30 @@ async def update_activity(
     session.commit()
     session.refresh(activity_db)
     return activity_db
+
+@app_obj.delete("/activity/{activity_id}")
+async def delete_activity(
+    *,
+    session: Session = Depends(model_helpers.get_db_session),
+    current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
+    activity_id: str):
+    """Deletes an activity owned by the current user."""
+    activity_db = session.exec(
+        select(model.ActivityTable).where(model.ActivityTable.activity_id == activity_id)
+    ).first()
+
+    if not activity_db:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    if activity_db.owner_id != current_user_id.id:
+        # Use 403 Forbidden as the user is authenticated but not authorized for this resource
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized: User doesn't own activity")
+
+    session.delete(activity_db)
+    session.commit()
+
+    # Return No Content response explicitly for DELETE success
+    return Response(status_code=200)
 
 @app_obj.post("/user/signup", tags=["user"])
 async def create_user(
