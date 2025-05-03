@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GetToken, ParseBackendResponse } from './Utils';
+import loadingImg from '../assets/loading.gif';
+
 
 function NewActivity() {
   const [is_loading, setIsLoading] = useState(false);
@@ -39,7 +41,7 @@ function NewActivity() {
     <div>
       {is_loading ? 
         (
-          <img src='/assets/loading.gif' alt="Loading..." />
+          <img src={loadingImg} alt="Loading..." />
         ) : 
         (
           <div>

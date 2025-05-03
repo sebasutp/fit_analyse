@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import NewActivity from './NewActivity'
 import { GetToken, ParseBackendResponse } from './Utils';
 import { ActivityCard } from './activity/ActivityCard';
+import loadingImg from '../assets/loading.gif';
 
 function Activities() {
   const [activities, setActivities] = useState([]);
@@ -43,7 +44,7 @@ function Activities() {
     <div>
       {is_loading ? 
         (
-          <img src='/assets/loading.gif' alt="Loading..." />
+          <img src={loadingImg} alt="Loading..." />
         ) : 
         (
           <div>

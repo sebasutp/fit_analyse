@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Polyline } from "react-leaflet";
 import msgpack from "msgpack-lite";
 import { useParams } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
+import loadingImg from "../assets/loading.gif";
 
 function RouteMap() {
   const { id } = useParams();
@@ -51,7 +52,7 @@ function RouteMap() {
   return (
     <div>
       {is_loading_raw_activity ? (
-        <img src="./assets/loading.gif" alt="Loading..." />
+        <img src={loadingImg} alt="Loading..." />
       ) : (
         <MapContainer
           center={mapCenter}
