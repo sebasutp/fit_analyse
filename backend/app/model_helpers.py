@@ -24,23 +24,6 @@ def get_db_session():
     with Session(engine) as session:
         yield session
 
-def extract_data_to_dataframe(fitfile):
-    data = []
-
-    for record in fitfile.messages:
-        if record.name == 'record':
-            row_data = {}
-            for field in record.fields:
-                row_data[field.name] = field.value
-            data.append(row_data)
-
-    df = pd.DataFrame(data)
-    if 'position_lat' in df.columns and 'position_long' in df.columns:    
-        position_scale = (1 << 32) / 360.0
-        df['position_lat'] = df['position_lat'] / position_scale
-        df['position_long'] = df['position_long'] / position_scale
-    return df
-
 def remove_columns(df: pd.DataFrame, cols: Sequence[str]):
     keep_cols = [x for x in df.columns if not x in set(cols)]
     return df[keep_cols]
