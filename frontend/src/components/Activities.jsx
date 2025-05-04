@@ -60,7 +60,6 @@ function Activities() {
       console.log("Token not found redirecting to /login");
       navigate("/login");
     } else {
-      loadActivities(token)
       // Load initial batch of activities
       loadActivities(true);
     }
@@ -69,14 +68,12 @@ function Activities() {
   // Effect for infinite scrolling
   useEffect(() => {
     const handleScroll = () => {
-      console.log(`Scrolling isLoading:{${isLoading}} hasMore: ${hasMore}`)
       // Check if scrolling near the bottom, not already loading, and there's more data
       if (
         window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 100 && // 100px buffer
         !isLoading &&
         hasMore
       ) {
-        console.log("Loading more activities");
         loadActivities();
       }
     };
