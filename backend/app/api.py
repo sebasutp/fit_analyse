@@ -3,7 +3,7 @@
 import os
 import json
 from datetime import timedelta, datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 import msgpack
 
@@ -167,13 +167,31 @@ async def get_activities(
     *,
     session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
-    from_timestamp: datetime = None):
+    limit: int = 10, # Default limit
+    cursor_date: Optional[datetime] = None, # The 'date' of the last item seen
+    cursor_id: Optional[str] = None # The 'activity_id' of the last item seen
+):
+    """
+    Fetches a list of activities for the current user, sorted by date descending.
+    Uses keyset (cursor-based) pagination for efficient loading.
+    """
     q = select(model.ActivityTable).where(
         model.ActivityTable.owner_id == current_user_id.id)
-    if from_timestamp:
-        q = q.where(model.ActivityTable.last_modified > from_timestamp)
-    return session.exec(q)
 
+    # Apply cursor conditions if provided (for subsequent pages)
+    if cursor_date is not None and cursor_id is not None:
+        # Fetch items older than the cursor date, or same date but smaller ID (since ID is random string, comparison works)
+        # Note: Adjust comparison (< or >) based on desired sort order (DESC vs ASC)
+        q = q.where(
+            (model.ActivityTable.date < cursor_date) |
+            ((model.ActivityTable.date == cursor_date) & (model.ActivityTable.activity_id < cursor_id))
+        )
+
+    # Always apply sorting and limit
+    q = q.order_by(model.ActivityTable.date.desc(), model.ActivityTable.activity_id.desc()).limit(limit)
+
+    results = session.exec(q).all()
+    return results
 
 @app_obj.patch("/activity/{activity_id}", response_model=model.ActivityBase)
 async def update_activity(
