@@ -11,7 +11,8 @@ function Activities() {
   const [cursorDate, setCursorDate] = useState(null);
   const [cursorId, setCursorId] = useState(null);
   const [hasMore, setHasMore] = useState(true); // Assume there's more data initially
-  const limit = 3; // Match the backend default or set your desired page size
+  // Ensure the limit is treated as a number
+  const limit = parseInt(import.meta.env.VITE_ACTIVITY_PAGE_LIMIT) || 10;
 
   const navigate = useNavigate();
   const token = GetToken();
@@ -68,12 +69,14 @@ function Activities() {
   // Effect for infinite scrolling
   useEffect(() => {
     const handleScroll = () => {
+      console.log(`Scrolling isLoading:{${isLoading}} hasMore: ${hasMore}`)
       // Check if scrolling near the bottom, not already loading, and there's more data
       if (
         window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 100 && // 100px buffer
         !isLoading &&
         hasMore
       ) {
+        console.log("Loading more activities");
         loadActivities();
       }
     };
