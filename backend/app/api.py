@@ -4,6 +4,7 @@ import os
 import json
 from datetime import timedelta, datetime
 from typing import Annotated, Optional
+import pandas as pd
 
 import msgpack
 
@@ -95,39 +96,13 @@ async def upload_activity(
         # We need to ensure ActivityTable gets valid values.
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .fit or .gpx file.")
+    print(ride_df.head())
 
     if ride_df is None or ride_df.empty:
         raise HTTPException(status_code=400, detail="Failed to parse file or file is empty.")
 
     # Attempt to compute summary. Handle potential issues for GPX.
-    try:
-        summary = model_helpers.compute_activity_summary(ride_df=ride_df)
-    except KeyError as e:
-        # This might happen if GPX df is missing expected columns like 'speed' or 'distance'
-        # For now, let's create a minimal summary if that's the case for a route
-        if activity_type == "route":
-            summary = model.ActivitySummary(
-                distance=0, # Placeholder, ideally calculate from lat/lon
-                total_elapsed_time=(ride_df['timestamp'].iloc[-1] - ride_df['timestamp'].iloc[0]).seconds if not ride_df.empty and 'timestamp' in ride_df.columns and len(ride_df['timestamp']) > 1 else 0,
-                active_time=0, # Placeholder
-                elevation_gain=model_helpers.compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns else 0,
-                average_speed=None,
-                power_summary=None,
-                elev_summary=model_helpers.elev_summary(ride_df, 200) if 'altitude' in ride_df.columns and 'distance' in ride_df.columns else None # elev_summary needs distance
-            )
-            # If distance is crucial for elev_summary, and not present, this might still be an issue.
-            # For now, let's assume 'distance' might be missing from gpx_parsing output for elev_summary.
-            # A better fix would be to ensure gpx_parsing adds a cumulative distance column.
-            if 'altitude' in ride_df.columns and 'distance' not in ride_df.columns:
-                 # Create a dummy distance for elev_summary if altitudes are present but distance is not
-                 # This is a simplification. Proper distance calculation is needed.
-                 ride_df_copy = ride_df.copy()
-                 ride_df_copy['distance'] = range(len(ride_df_copy)) 
-                 summary.elev_summary = model_helpers.elev_summary(ride_df_copy, 200)
-
-
-        else:
-            raise HTTPException(status_code=500, detail=f"Error computing activity summary: {e}")
+    summary = model_helpers.compute_activity_summary(ride_df=ride_df)
     
     # Ensure required fields for ActivityTable have fallbacks for GPX if summary didn't provide them
     distance = summary.distance if summary.distance is not None else 0

@@ -15,5 +15,6 @@ msgpack==1.1.0
 alembic==1.14.0
 staticmap==0.5.7
 pytest==8.3.5
+pytest-mock==3.14.1
 gpxpy==1.6.2
 absl-py==2.2.2

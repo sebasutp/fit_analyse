@@ -104,12 +104,15 @@ def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200):
     total_time = len(ride_df)
     elevation_gain = compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns else 0
 
+    distance = (ride_df['distance'].iloc[-1] / 1000) if 'distance' in ride_df.columns else 0
+    avg_speed = (ride_df['speed'].mean() * 3.6) if 'speed' in ride_df.columns else 0
+    elapsed_time = (ride_df['timestamp'].iloc[-1] - ride_df['timestamp'][0]).seconds if 'timestamp' in ride_df else 0.0
     summary = model.ActivitySummary(
-        distance=ride_df['distance'].iloc[-1] / 1000,
-        total_elapsed_time=(ride_df['timestamp'].iloc[-1] - ride_df['timestamp'][0]).seconds,
+        distance=distance,
+        total_elapsed_time=elapsed_time,
         active_time=total_time,
         elevation_gain=elevation_gain,
-        average_speed=ride_df['speed'].mean() * 3.6  # From m/s to km/h
+        average_speed=avg_speed
     )
     if 'power' in ride_df.columns:
         work = ride_df.power.sum()
@@ -189,20 +192,20 @@ def get_activity_gpx(ride_df: pd.DataFrame):
 
     lat = valid_rows['position_lat'].to_numpy()
     long = valid_rows['position_long'].to_numpy()
-    # if 'altitude' in valid_rows.columns:
-    #     alt = valid_rows['altitude'].to_numpy()
-    #     has_alt = ~np.isnan(alt)
-    #     print(has_alt.shape)
-    # else:
-    #     alt = None
+    if 'altitude' in valid_rows.columns:
+        alt = valid_rows['altitude'].to_numpy()
+        has_alt = ~np.isnan(alt)
+        print(has_alt.shape)
+    else:
+        alt = None
 
     for index in range(len(valid_rows)):
         gpx_point = gpxpy.gpx.GPXTrackPoint(
             latitude=lat[index],
             longitude=long[index]
         )
-        # if alt and has_alt[index]:
-        #     gpx_point.elevation = alt[index]
+        if alt is not None and has_alt[index]:
+            gpx_point.elevation = alt[index]
         gpx_segment.points.append(gpx_point)
 
     return gpx.to_xml()

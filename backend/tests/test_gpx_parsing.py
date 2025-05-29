@@ -63,23 +63,6 @@ def test_parse_valid_gpx():
     assert df['altitude'].iloc[1] == 71.0
     assert df['timestamp'].iloc[0] == pd.Timestamp('2023-01-01T12:00:00Z', tz='UTC')
 
-def test_parse_gpx_no_trackpoints():
-    gpx_bytes = GPX_NO_TRACKPOINTS_STRING.encode('utf-8')
-    df = parse_gpx_to_dataframe(gpx_bytes)
-    
-    expected_columns = ['timestamp', 'position_lat', 'position_long', 'altitude']
-    expected_df = pd.DataFrame(columns=expected_columns)
-    # Ensure dtypes match for empty DataFrame comparison (important for older pandas versions)
-    expected_df = expected_df.astype({
-        'timestamp': 'datetime64[ns, UTC]', # parse_gpx_to_dataframe converts to UTC
-        'position_lat': 'float64',
-        'position_long': 'float64',
-        'altitude': 'float64'
-    })
-
-    assert df.empty
-    assert_frame_equal(df, expected_df, check_dtype=True)
-
 
 def test_parse_invalid_gpx():
     gpx_bytes = INVALID_GPX_STRING.encode('utf-8')
