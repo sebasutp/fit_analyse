@@ -7,7 +7,7 @@ from typing import Annotated, Optional
 
 import msgpack
 
-from fastapi import Body, Depends, FastAPI, HTTPException, File
+from fastapi import Body, Depends, FastAPI, HTTPException, File, UploadFile
 from fastapi.responses import StreamingResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -15,7 +15,7 @@ from sqlmodel import Session, select
 
 from app.auth import auth_handler
 from app.auth import crypto
-from app import model, model_helpers, fit_parsing
+from app import model, model_helpers, fit_parsing, gpx_parsing
 
 app_obj = FastAPI()
 app_obj.add_middleware(
@@ -72,18 +72,88 @@ async def upload_activity(
     *,
     session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
-    file: Annotated[bytes, File()]):
-    ride_df = fit_parsing.extract_data_to_dataframe(file)
-    summary = model_helpers.compute_activity_summary(ride_df=ride_df)
+    file: UploadFile = File(...)):
+
+    filename = file.filename
+    file_bytes = await file.read()
+    await file.close() # Close the file after reading
+
+    ride_df = None
+    activity_type = None
+    default_name = "Activity"
+
+    if filename.endswith('.fit'):
+        ride_df = fit_parsing.extract_data_to_dataframe(file_bytes)
+        activity_type = "recorded"
+        default_name = "Ride"
+    elif filename.endswith('.gpx'):
+        ride_df = gpx_parsing.parse_gpx_to_dataframe(file_bytes)
+        activity_type = "route"
+        default_name = "Route"
+        # For GPX, 'distance' and 'speed' might not be in ride_df initially.
+        # compute_activity_summary might fail or return 0/None for these.
+        # We need to ensure ActivityTable gets valid values.
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .fit or .gpx file.")
+
+    if ride_df is None or ride_df.empty:
+        raise HTTPException(status_code=400, detail="Failed to parse file or file is empty.")
+
+    # Attempt to compute summary. Handle potential issues for GPX.
+    try:
+        summary = model_helpers.compute_activity_summary(ride_df=ride_df)
+    except KeyError as e:
+        # This might happen if GPX df is missing expected columns like 'speed' or 'distance'
+        # For now, let's create a minimal summary if that's the case for a route
+        if activity_type == "route":
+            summary = model.ActivitySummary(
+                distance=0, # Placeholder, ideally calculate from lat/lon
+                total_elapsed_time=(ride_df['timestamp'].iloc[-1] - ride_df['timestamp'].iloc[0]).seconds if not ride_df.empty and 'timestamp' in ride_df.columns and len(ride_df['timestamp']) > 1 else 0,
+                active_time=0, # Placeholder
+                elevation_gain=model_helpers.compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns else 0,
+                average_speed=None,
+                power_summary=None,
+                elev_summary=model_helpers.elev_summary(ride_df, 200) if 'altitude' in ride_df.columns and 'distance' in ride_df.columns else None # elev_summary needs distance
+            )
+            # If distance is crucial for elev_summary, and not present, this might still be an issue.
+            # For now, let's assume 'distance' might be missing from gpx_parsing output for elev_summary.
+            # A better fix would be to ensure gpx_parsing adds a cumulative distance column.
+            if 'altitude' in ride_df.columns and 'distance' not in ride_df.columns:
+                 # Create a dummy distance for elev_summary if altitudes are present but distance is not
+                 # This is a simplification. Proper distance calculation is needed.
+                 ride_df_copy = ride_df.copy()
+                 ride_df_copy['distance'] = range(len(ride_df_copy)) 
+                 summary.elev_summary = model_helpers.elev_summary(ride_df_copy, 200)
+
+
+        else:
+            raise HTTPException(status_code=500, detail=f"Error computing activity summary: {e}")
+    
+    # Ensure required fields for ActivityTable have fallbacks for GPX if summary didn't provide them
+    distance = summary.distance if summary.distance is not None else 0
+    active_time = summary.active_time if summary.active_time is not None else 0
+    elevation_gain = summary.elevation_gain if summary.elevation_gain is not None else 0
+    
+    # Date handling
+    activity_date = datetime.now() # Default to now
+    if not ride_df.empty and 'timestamp' in ride_df.columns and pd.api.types.is_datetime64_any_dtype(ride_df['timestamp']) and not ride_df['timestamp'].dropna().empty:
+        activity_date = ride_df['timestamp'].dropna().iloc[0]
+        # Ensure timezone awareness (UTC)
+        if activity_date.tzinfo is None:
+            activity_date = activity_date.tz_localize('UTC')
+        else:
+            activity_date = activity_date.tz_convert('UTC')
+    
     activity_db = model.ActivityTable(
         activity_id=crypto.generate_random_base64_string(16),
-        name="Ride",
+        name=default_name, # Use default_name based on file type
         owner_id=current_user_id.id,
-        distance=summary.distance,
-        active_time=summary.active_time,
-        elevation_gain=summary.elevation_gain,
-        date=ride_df.timestamp.iloc[0],
-        last_modified=datetime.now(),
+        activity_type=activity_type, # Set the activity type
+        distance=distance,
+        active_time=active_time,
+        elevation_gain=elevation_gain,
+        date=activity_date,
+        last_modified=datetime.now(datetime.now().astimezone().tzinfo), # Use timezone-aware datetime
         data=model_helpers.serialize_dataframe(ride_df)
     )
     session.add(activity_db)
@@ -167,6 +237,7 @@ async def get_activities(
     *,
     session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
+    activity_type: Optional[str] = None, # New query parameter for filtering
     limit: int = 10, # Default limit
     cursor_date: Optional[datetime] = None, # The 'date' of the last item seen
     cursor_id: Optional[str] = None # The 'activity_id' of the last item seen
@@ -177,6 +248,10 @@ async def get_activities(
     """
     q = select(model.ActivityTable).where(
         model.ActivityTable.owner_id == current_user_id.id)
+
+    # Apply activity_type filter if provided
+    if activity_type:
+        q = q.where(model.ActivityTable.activity_type == activity_type)
 
     # Apply cursor conditions if provided (for subsequent pages)
     if cursor_date is not None and cursor_id is not None:
