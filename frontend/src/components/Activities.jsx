@@ -10,23 +10,21 @@ function Activities() {
   const [isLoading, setIsLoading] = useState(false);
   const [cursorDate, setCursorDate] = useState(null);
   const [cursorId, setCursorId] = useState(null);
-  const [hasMore, setHasMore] = useState(true); // Assume there's more data initially
-  // Ensure the limit is treated as a number
-  const limit = parseInt(import.meta.env.VITE_ACTIVITY_PAGE_LIMIT) || 10;
+  const [hasMore, setHasMore] = useState(true);
+  const [selectedTab, setSelectedTab] = useState('recorded'); // Default tab
 
+  const limit = parseInt(import.meta.env.VITE_ACTIVITY_PAGE_LIMIT) || 10;
   const navigate = useNavigate();
   const token = GetToken();
 
-  const loadActivities = useCallback((isInitialLoad = false) => {
+  const loadActivities = useCallback((isInitialLoad = false, tab = selectedTab) => {
     if (isLoading || (!isInitialLoad && !hasMore)) {
-      // Don't fetch if already loading or if we know there's no more data
       return;
     }
 
     setIsLoading(true);
-    let url = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=${limit}`;
+    let url = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=${limit}&activity_type=${tab}`;
 
-    // Add cursor parameters if it's not the initial load and cursors exist
     if (!isInitialLoad && cursorDate && cursorId) {
       url += `&cursor_date=${encodeURIComponent(cursorDate)}&cursor_id=${encodeURIComponent(cursorId)}`;
     }
@@ -60,10 +58,14 @@ function Activities() {
       console.log("Token not found redirecting to /login");
       navigate("/login");
     } else {
-      // Load initial batch of activities
-      loadActivities(true);
+      // Initial load or tab change
+      setActivities([]); // Clear activities
+      setCursorDate(null); // Reset cursor
+      setCursorId(null);   // Reset cursor
+      setHasMore(true);    // Assume more data for the new tab
+      loadActivities(true, selectedTab); // Pass selectedTab
     }
-  }, [navigate, token]); // Run only when token changes or on initial mount
+  }, [navigate, token, selectedTab]); // Re-run when selectedTab changes
 
   // Effect for infinite scrolling
   useEffect(() => {
@@ -85,24 +87,52 @@ function Activities() {
 
   return (
     <div>
-      {activities.length > 0 || !isLoading ? ( // Show content if activities exist or not loading initial batch
-          <div>
-            <NewActivity />
-            <div className="col-container">
-                {activities.map((activity, i) => (
-                  <ActivityCard
-                    key={i}
-                    activity={activity}
-                  />
-                ))
-                }
-            </div>
-            {/* Show loading indicator specifically for loading more */}
-            {isLoading && activities.length > 0 && <div style={{ textAlign: 'center', margin: '20px' }}><img src={loadingImg} alt="Loading more..." /></div>}
+      <NewActivity />
+      {/* Tab Navigation */}
+      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+        <button
+          onClick={() => setSelectedTab('recorded')}
+          style={{ marginRight: '10px', padding: '10px', cursor: 'pointer', backgroundColor: selectedTab === 'recorded' ? 'lightblue' : 'white' }}
+        >
+          Recorded Activities
+        </button>
+        <button
+          onClick={() => setSelectedTab('route')}
+          style={{ padding: '10px', cursor: 'pointer', backgroundColor: selectedTab === 'route' ? 'lightblue' : 'white' }}
+        >
+          Routes
+        </button>
+      </div>
+
+      {activities.length > 0 || !isLoading ? (
+        <div>
+          <div className="col-container">
+            {activities.map((activity, i) => (
+              <ActivityCard
+                key={`${selectedTab}-${activity.activity_id}-${i}`} // Ensure unique key on tab change
+                activity={activity}
+              />
+            ))}
           </div>
-        ) : ( // Show initial loading indicator
-          <img src={loadingImg} alt="Loading..." />
-        )}
+          {isLoading && activities.length > 0 && (
+            <div style={{ textAlign: 'center', margin: '20px' }}>
+              <img src={loadingImg} alt="Loading more..." />
+            </div>
+          )}
+          {!hasMore && activities.length > 0 && (
+            <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
+              No more activities to load.
+            </div>
+          )}
+        </div>
+      ) : (
+        isLoading && <img src={loadingImg} alt="Loading..." /> 
+      )}
+       {!isLoading && activities.length === 0 && !hasMore && (
+         <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
+            No activities found for this type.
+          </div>
+       )}
     </div>
   );
 }

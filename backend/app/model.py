@@ -73,6 +73,7 @@ class ActivitySummary(BaseModel):
 class ActivityBase(SQLModel):
     activity_id: str = Field(...)
     name: Optional[str] = Field(...)
+    activity_type: str = Field(...) # Added activity_type field
     owner_id: int = Field(default=None, foreign_key="user.id")
     distance: Optional[float] = Field(...)
     active_time: Optional[float] = Field(...)
@@ -90,6 +91,7 @@ class ActivityResponse(BaseModel):
 
 class ActivityTable(ActivityBase, table=True):
     activity_id: str = Field(default=None, primary_key=True)
+    # activity_type is inherited from ActivityBase
     data: bytes = Field(...)
     static_map: Optional[bytes] = Field(...)
 
