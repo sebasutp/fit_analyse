@@ -6,6 +6,7 @@ import { FaPencil, FaDownload, FaTrash } from "react-icons/fa6";
 import PowerCard from './power/PowerCard'
 import { ElevCard } from './activity/ElevationCard';
 import {Metric, MetricBox} from './MetricComponents'
+import LapsTable from './activity/LapsTable'; // Adjust path if necessary
 import {getElapsedTime, GetToken} from './Utils';
 import loadingImg from '../assets/loading.gif';
 
@@ -228,6 +229,9 @@ function ViewActivity() {
             <PowerCard
               powerSummary={activity.activity_analysis.power_summary}
             />
+          )}
+          {activity?.laps && activity.laps.length > 1 && (
+            <LapsTable laps={activity.laps} />
           )}
         </div>
       )}

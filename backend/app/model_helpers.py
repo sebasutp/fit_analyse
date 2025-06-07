@@ -100,30 +100,121 @@ def elev_summary(ride_df: pd.DataFrame, num_samples: int):
     )
     return summary
 
-def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200):
-    total_time = len(ride_df)
-    elevation_gain = compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns else 0
+# Refactored compute_power_summary
+def compute_power_summary(df: pd.DataFrame) -> model.PowerSummary | None: # Using | None for Python 3.9+
+    if df is None or df.empty or 'power' not in df.columns:
+        return None
 
-    distance = (ride_df['distance'].iloc[-1] / 1000) if 'distance' in ride_df.columns else 0
-    avg_speed = (ride_df['speed'].mean() * 3.6) if 'speed' in ride_df.columns else 0
-    elapsed_time = (ride_df['timestamp'].iloc[-1] - ride_df['timestamp'][0]).seconds if 'timestamp' in ride_df else 0.0
-    summary = model.ActivitySummary(
-        distance=distance,
-        total_elapsed_time=elapsed_time,
-        active_time=total_time,
-        elevation_gain=elevation_gain,
-        average_speed=avg_speed
+    df_power = df['power'].dropna()
+    if df_power.empty:
+        return None
+
+    average_power = df_power.mean()
+    median_power = df_power.median()
+
+    total_work_joules = 0.0
+    # Calculate total work (Joules) if timestamp and power are available
+    # This requires time difference, so needs 'timestamp' column properly formatted
+    if 'timestamp' in df.columns and not df_power.empty:
+        # Ensure 'timestamp' is datetime and DataFrame is sorted by it for diff() to be meaningful
+        df_sorted = df.sort_values(by='timestamp').copy() # Use .copy() to avoid SettingWithCopyWarning
+        if not pd.api.types.is_datetime64_any_dtype(df_sorted['timestamp']):
+             df_sorted['timestamp'] = pd.to_datetime(df_sorted['timestamp'])
+
+        df_sorted['time_diff'] = df_sorted['timestamp'].diff().dt.total_seconds()
+
+        # Power (Watts = J/s) * time_diff (s) = Work (J)
+        # Only consider time diffs where power is not NaN for that interval
+        # Summing product of power and time_diff for each interval
+        # Ensure power used is from the same row as time_diff (or the start of the interval)
+        # A common approach is to use power at the start of the interval or average power over the interval
+        # Here, using power of the current record with time_diff from previous.
+        valid_work_calc = df_sorted.dropna(subset=['power', 'time_diff'])
+        if not valid_work_calc.empty:
+            # Make sure power is numeric after potential NA drops
+            numeric_power = pd.to_numeric(valid_work_calc['power'], errors='coerce').fillna(0)
+            total_work_joules = (numeric_power * valid_work_calc['time_diff']).sum()
+
+    power_quantiles = list(df_power.quantile([i/100.0 for i in range(101)]))
+
+    return model.PowerSummary(
+        average_power=float(average_power) if pd.notna(average_power) else 0.0,
+        median_power=float(median_power) if pd.notna(median_power) else 0.0,
+        total_work=float(total_work_joules / 1000.0), # Convert to kJ
+        quantiles=power_quantiles
     )
-    if 'power' in ride_df.columns:
-        work = ride_df.power.sum()
-        quantiles = ride_df.power.quantile(np.arange(0, 101)/100)
-        summary.power_summary = model.PowerSummary(
-            average_power = work / total_time,
-            median_power = quantiles.iloc[50],
-            total_work = work / 1000,  # to KJ instad of Joules
-            quantiles = quantiles.to_list()
-        )
-    if 'altitude' in ride_df.columns:
+
+def compute_lap_metrics(lap_data_row: pd.Series, activity_df: pd.DataFrame) -> model.LapMetrics:
+    lap_start_time = pd.to_datetime(lap_data_row['start_time'])
+    lap_end_time = pd.to_datetime(lap_data_row['timestamp'])
+
+    # Filter the main activity DataFrame for the lap duration
+    # Ensure activity_df['timestamp'] is datetime objects
+    activity_df_copy = activity_df.copy() # Work on a copy
+    if not pd.api.types.is_datetime64_any_dtype(activity_df_copy['timestamp']):
+        activity_df_copy['timestamp'] = pd.to_datetime(activity_df_copy['timestamp'])
+
+    lap_segment_df = activity_df_copy[
+        (activity_df_copy['timestamp'] >= lap_start_time) & \
+        (activity_df_copy['timestamp'] <= lap_end_time)
+    ].copy() # Use .copy() to avoid SettingWithCopyWarning further
+
+    # Calculate PowerSummary for the lap segment
+    power_summary_for_lap = compute_power_summary(lap_segment_df)
+
+    # Populate LapMetrics
+    lap_metrics_obj = model.LapMetrics(
+        start_time=str(lap_start_time),
+        timestamp=str(lap_end_time),
+        total_distance=lap_data_row.get('total_distance'),
+        total_elapsed_time=lap_data_row.get('total_elapsed_time'),
+        total_timer_time=lap_data_row.get('total_timer_time'),
+        avg_speed=lap_data_row.get('avg_speed'),
+        max_speed=lap_data_row.get('max_speed'),
+        total_ascent=lap_data_row.get('total_ascent'),
+        total_descent=lap_data_row.get('total_descent'),
+        max_power=lap_data_row.get('max_power'), # Get from Go data
+        power_summary=power_summary_for_lap
+    )
+    return lap_metrics_obj
+
+def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200):
+    # total_time here refers to number of records, which is 1Hz for FIT usually.
+    # For GPX or other sources, this might need adjustment if it's not 1 sample per second.
+    total_time_seconds = len(ride_df) # Assuming 1 record per second for active_time calculation
+
+    elevation_gain = compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns and not ride_df['altitude'].dropna().empty else 0.0
+
+    distance_km = (ride_df['distance'].iloc[-1] / 1000.0) if 'distance' in ride_df.columns and not ride_df['distance'].empty else 0.0
+
+    # Avg speed: prefer calculation from total distance and total elapsed time if available and reliable
+    # The direct mean of speed sensors can be noisy or misleading if stops are not handled.
+    # However, using ride_df['speed'].mean() is simpler if total_elapsed_time_proper is hard to get.
+    avg_speed_kmh = (ride_df['speed'].mean() * 3.6) if 'speed' in ride_df.columns and not ride_df['speed'].dropna().empty else 0.0
+
+    # Elapsed time: Difference between first and last timestamp.
+    # Ensure timestamp column is datetime objects
+    actual_elapsed_time_seconds = 0.0
+    if 'timestamp' in ride_df.columns and not ride_df['timestamp'].dropna().empty:
+        if not pd.api.types.is_datetime64_any_dtype(ride_df['timestamp']):
+            ride_df['timestamp'] = pd.to_datetime(ride_df['timestamp']) # Ensure datetime objects
+        # Sort by timestamp before taking first and last to ensure correctness
+        sorted_timestamps = ride_df['timestamp'].dropna().sort_values()
+        if not sorted_timestamps.empty:
+            actual_elapsed_time_seconds = (sorted_timestamps.iloc[-1] - sorted_timestamps.iloc[0]).total_seconds()
+
+    summary = model.ActivitySummary(
+        distance=distance_km,
+        total_elapsed_time=actual_elapsed_time_seconds, # This is wall clock time
+        active_time=float(total_time_seconds), # This is recording duration (sum of 1s intervals)
+        elevation_gain=elevation_gain,
+        average_speed=avg_speed_kmh # Could also be distance_km / (actual_elapsed_time_seconds / 3600) if actual_elapsed_time is reliable
+    )
+
+    # Call the refactored power summary function
+    summary.power_summary = compute_power_summary(ride_df)
+
+    if 'altitude' in ride_df.columns and not ride_df['altitude'].dropna().empty:
         summary.elev_summary = elev_summary(ride_df, num_samples)
     return summary
 
@@ -137,14 +228,62 @@ def has_gps_data(activity_df):
 def get_activity_response(
         activity_db: model.ActivityTable,
         include_raw_data: bool = False):
-    activity_df = get_activity_raw_df(activity_db)
+
+    activity_df = None
+    if activity_db.data: # Check if records data exists
+        activity_df = deserialize_dataframe(activity_db.data)
+        # Ensure activity_df's timestamp column is datetime for lap processing
+        if activity_df is not None and not activity_df.empty and 'timestamp' in activity_df.columns and \
+           not pd.api.types.is_datetime64_any_dtype(activity_df['timestamp']):
+            activity_df['timestamp'] = pd.to_datetime(activity_df['timestamp'])
+
+    # Initialize ActivityResponse, compute activity_analysis if activity_df is available
+    if activity_df is not None and not activity_df.empty:
+        activity_analysis_summary = compute_activity_summary(activity_df)
+        has_gps = has_gps_data(activity_df)
+    else:
+        # Fallback if activity_df could not be loaded or is empty
+        # Create a minimal ActivitySummary or handle as appropriate
+        activity_analysis_summary = model.ActivitySummary(total_elapsed_time=0, active_time=0) # Example
+        has_gps = False
+
+
     ans = model.ActivityResponse(
         activity_base=activity_db,
-        activity_analysis=compute_activity_summary(activity_df),
-        has_gps_data=has_gps_data(activity_df)
+        activity_analysis=activity_analysis_summary,
+        has_gps_data=has_gps
     )
-    if include_raw_data:
-        ans.activity_data = activity_df.to_json()
+
+    if include_raw_data and activity_df is not None and not activity_df.empty:
+        ans.activity_data = activity_df.to_json() # For raw records data
+
+    # Process laps if laps_data exists and activity_df (records) is available
+    if activity_db.laps_data and activity_df is not None and not activity_df.empty:
+        laps_df_raw = deserialize_dataframe(activity_db.laps_data)
+        if laps_df_raw is not None and not laps_df_raw.empty:
+            processed_laps_list = []
+
+            # Ensure timestamp columns in laps_df_raw are datetime objects for comparison
+            # These should already be datetime if Arrow parsing was correct
+            if 'start_time' in laps_df_raw.columns and \
+               not pd.api.types.is_datetime64_any_dtype(laps_df_raw['start_time']):
+                 laps_df_raw['start_time'] = pd.to_datetime(laps_df_raw['start_time'])
+            if 'timestamp' in laps_df_raw.columns and \
+               not pd.api.types.is_datetime64_any_dtype(laps_df_raw['timestamp']):
+                 laps_df_raw['timestamp'] = pd.to_datetime(laps_df_raw['timestamp'])
+
+            for index, lap_row_series in laps_df_raw.iterrows():
+                if 'start_time' not in lap_row_series or pd.isna(lap_row_series['start_time']) or \
+                   'timestamp' not in lap_row_series or pd.isna(lap_row_series['timestamp']):
+                    # Log or skip if essential time data is missing for a lap
+                    # print(f"Skipping lap due to missing time data: {lap_row_series}") # Replace with logging
+                    continue
+
+                lap_metrics_instance = compute_lap_metrics(lap_row_series, activity_df)
+                processed_laps_list.append(lap_metrics_instance)
+
+            if processed_laps_list: # Only assign if we have successfully processed laps
+                ans.laps = processed_laps_list
     return ans
 
 def fetch_activity(activity_id: str, session: Session):

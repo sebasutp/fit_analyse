@@ -41,6 +41,19 @@ class PowerSummary(BaseModel):
     # JSON encoded array of 101 position 0..100, with the power quantiles
     quantiles: Optional[Sequence[float]] = None
 
+class LapMetrics(BaseModel):
+    timestamp: str  # Lap end time, stringified
+    start_time: str # Lap start time, stringified
+    total_distance: Optional[float] = None
+    total_elapsed_time: Optional[float] = None
+    total_timer_time: Optional[float] = None
+    avg_speed: Optional[float] = None # Will likely be recalculated or taken from Go
+    max_speed: Optional[float] = None
+    total_ascent: Optional[float] = None
+    total_descent: Optional[float] = None
+    max_power: Optional[float] = None # Value from Go data
+    power_summary: Optional[PowerSummary] = None # Contains recalculated avg_power, median_power, etc.
+
 class ElevationSummary(BaseModel):
     lowest: float
     highest: float
@@ -85,7 +98,8 @@ class ActivityBase(SQLModel):
 class ActivityResponse(BaseModel):
     activity_base: Optional[ActivityBase] = None
     activity_analysis: Optional[ActivitySummary] = None
-    activity_data: Optional[str] = None
+    activity_data: Optional[str] = None # This is for raw records string, not laps
+    laps: Optional[list[LapMetrics]] = None # Changed from list[dict]
     has_gps_data: bool = False
     
 
@@ -94,6 +108,7 @@ class ActivityTable(ActivityBase, table=True):
     # activity_type is inherited from ActivityBase
     data: bytes = Field(...)
     static_map: Optional[bytes] = Field(...)
+    laps_data: Optional[bytes] = Field(default=None)
 
 class ActivityUpdate(BaseModel):
     name: Optional[str] = None

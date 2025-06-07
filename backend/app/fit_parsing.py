@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 import pyarrow.ipc as pa_ipc
 import time
-import io # Needed for BytesIO
+import io  # Needed for BytesIO
 import numpy as np
 
 # Import absl libraries
@@ -34,7 +34,7 @@ def fitparse_extract_data(stream: bytes):
     return df
 
 
-def go_extract_data(go_program_path: str, fit_file_content: bytes):
+def go_extract_data(go_program_path: str, fit_file_content: bytes, extraction_type: str = "records"):
     """
     Executes a Go program, passes FIT file content via stdin,
     and reads an Arrow stream from stdout into a Pandas DataFrame.
@@ -51,7 +51,7 @@ def go_extract_data(go_program_path: str, fit_file_content: bytes):
         # Use subprocess.Popen to run the Go program
         # Capture stdout, stderr, and provide stdin
         process = subprocess.Popen(
-            [go_program_path],
+            [go_program_path, f"-type={extraction_type}"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -84,7 +84,10 @@ def go_extract_data(go_program_path: str, fit_file_content: bytes):
         df = arrow_table.to_pandas()
         scales = {
             'position_lat': (1 << 32) / 360.0, 'position_long': (1 << 32) / 360.0,
-            'distance': 100.0, 'speed': 1000.0, 'power': 1.0, 'temperature': 1.0, 'altitude': 5.0}
+            'distance': 100.0, 'total_distance': 100.0,
+            'speed': 1000.0, 'avg_speed': 1000.0/3.6, 'max_speed': 1000.0/3.6,
+            'total_elapsed_time': 1000.0, 'total_timer_time': 1000.0,
+            'power': 1.0, 'temperature': 1.0, 'altitude': 5.0}
         bias = {'altitude': -500.0}
         for col in df.columns:
             if col not in scales:
@@ -120,6 +123,20 @@ def go_extract_data(go_program_path: str, fit_file_content: bytes):
         except Exception as inner_e:
             logging.error(f"Error retrieving process details: {inner_e}")
         return None
+
+
+def go_extract_laps_data(go_program_path: str, fit_file_content: bytes) -> pd.DataFrame | None:
+    """
+    Extracts laps data from a FIT file using the Go program.
+
+    Args:
+        go_program_path (str): The path to the compiled Go executable.
+        fit_file_content (bytes): The binary content of the FIT file.
+
+    Returns:
+        pandas.DataFrame: The DataFrame containing laps data, or None on error.
+    """
+    return go_extract_data(go_program_path, fit_file_content, extraction_type="laps")
 
 
 def extract_data_to_dataframe(fitfile: bytes):
