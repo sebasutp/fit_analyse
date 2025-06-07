@@ -1,6 +1,8 @@
 // frontend/src/components/activity/LapsTable.jsx
 
-import React from 'react';
+import React, { useState } from 'react';
+import PowerCdfPlot from '../power/PowerCdfPlot.jsx';
+import { Metric } from '../MetricComponents.jsx';
 
 // Helper function to format seconds into HH:MM:SS or MM:SS
 const formatDuration = (seconds) => {
@@ -40,9 +42,18 @@ const formatNumber = (num, decimalPlaces = 2) => {
 };
 
 function LapsTable({ laps }) {
+  const [expandedLaps, setExpandedLaps] = useState({});
+
   if (!laps || laps.length <= 1) {
     return null;
   }
+
+  const toggleLap = (index) => {
+    setExpandedLaps(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
 
   // Define the headers that should always be displayed
   const displayHeaders = ['total_distance', 'total_timer_time', 'avg_speed', 'avg_power'];
@@ -86,10 +97,15 @@ function LapsTable({ laps }) {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
           {laps.map((lap, index) => (
-            <tr key={index} className={index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-850' : 'bg-white dark:bg-gray-900'}>
-              {/* Lap Number - always visible */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white hidden sm:table-cell">
-                {index + 1}
+            <React.Fragment key={`lap-fragment-${index}`}>
+              <tr
+                key={`lap-${index}`}
+                onClick={() => toggleLap(index)}
+                className={`${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-850' : 'bg-white dark:bg-gray-900'} cursor-pointer`}
+              >
+                {/* Lap Number - always visible */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white hidden sm:table-cell">
+                  {index + 1}
               </td>
 
               {/* Timestamp (End) - hidden on small screens */}
@@ -152,6 +168,39 @@ function LapsTable({ laps }) {
                 {formatNumber(lap.total_descent, 0)}
               </td>
             </tr>
+            {expandedLaps[index] && (
+              <tr key={`lap-details-${index}`} className="bg-gray-100 dark:bg-gray-700">
+                <td colSpan={tableHeaders.length} className="p-4 text-sm text-gray-700 dark:text-gray-200">
+                  {lap.power_summary && lap.power_summary.quantiles ? (
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="w-full md:w-2/3 lg:w-1/2">
+                        <PowerCdfPlot powerQuantiles={lap.power_summary.quantiles} />
+                      </div>
+                      <div className="flex flex-row justify-around mt-2 w-full md:w-2/3 lg:w-1/2">
+                        <Metric label="Average Power" value={formatNumber(lap.power_summary.average_power, 0)} unit="W" />
+                        <Metric label="Median Power" value={formatNumber(lap.power_summary.median_power, 0)} unit="W" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 items-baseline">
+                      <div><strong>Timestamp (End):</strong> {formatDateTime(lap.timestamp)}</div>
+                      <div><strong>Start Time:</strong> {formatDateTime(lap.start_time)}</div>
+                      <div><strong>Elapsed Time:</strong> {formatDuration(lap.total_elapsed_time)}</div>
+                      <div><strong>Max Speed:</strong> {formatNumber(lap.max_speed)} km/h</div>
+                      {lap.power_summary && lap.power_summary.median_power !== undefined && !lap.power_summary.quantiles && (
+                        <div><strong>Median Power:</strong> {formatNumber(lap.power_summary.median_power, 0)} W</div>
+                      )}
+                      {lap.max_power !== undefined && (!lap.power_summary || lap.power_summary.average_power === undefined) && (
+                        <div><strong>Max Power:</strong> {formatNumber(lap.max_power, 0)} W</div>
+                      )}
+                      <div><strong>Ascent:</strong> {formatNumber(lap.total_ascent, 0)} m</div>
+                      <div><strong>Descent:</strong> {formatNumber(lap.total_descent, 0)} m</div>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
