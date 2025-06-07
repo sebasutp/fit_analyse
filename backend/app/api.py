@@ -2,6 +2,7 @@
 
 import os
 import json
+import logging
 from datetime import timedelta, datetime
 from typing import Annotated, Optional
 import pandas as pd
@@ -17,6 +18,7 @@ from sqlmodel import Session, select
 from app.auth import auth_handler
 from app.auth import crypto
 from app import model, model_helpers, fit_parsing, gpx_parsing
+from app.fit_parsing import go_extract_laps_data # Ensure this is correctly placed if not covered by above
 
 app_obj = FastAPI()
 app_obj.add_middleware(
@@ -82,11 +84,19 @@ async def upload_activity(
     ride_df = None
     activity_type = None
     default_name = "Activity"
+    laps_df = None # Initialize laps_df
 
     if filename.endswith('.fit'):
         ride_df = fit_parsing.extract_data_to_dataframe(file_bytes)
         activity_type = "recorded"
         default_name = "Ride"
+        # Attempt to extract laps data for FIT files
+        go_executable = os.getenv("FIT_PARSE_GO_EXECUTABLE")
+        if go_executable:
+            laps_df = fit_parsing.go_extract_laps_data(go_executable, file_bytes)
+        else:
+            logging.warning("FIT_PARSE_GO_EXECUTABLE not set. Cannot extract lap data.")
+            pass # Or handle as preferred
     elif filename.endswith('.gpx'):
         ride_df = gpx_parsing.parse_gpx_to_dataframe(file_bytes)
         activity_type = "route"
@@ -131,6 +141,10 @@ async def upload_activity(
         last_modified=datetime.now(datetime.now().astimezone().tzinfo), # Use timezone-aware datetime
         data=model_helpers.serialize_dataframe(ride_df)
     )
+    # Add laps_data if available
+    if laps_df is not None and not laps_df.empty:
+        activity_db.laps_data = model_helpers.serialize_dataframe(laps_df)
+
     session.add(activity_db)
     session.commit()
     session.refresh(activity_db)
