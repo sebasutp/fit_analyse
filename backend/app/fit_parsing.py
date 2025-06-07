@@ -84,7 +84,10 @@ def go_extract_data(go_program_path: str, fit_file_content: bytes, extraction_ty
         df = arrow_table.to_pandas()
         scales = {
             'position_lat': (1 << 32) / 360.0, 'position_long': (1 << 32) / 360.0,
-            'distance': 100.0, 'speed': 1000.0, 'power': 1.0, 'temperature': 1.0, 'altitude': 5.0}
+            'distance': 100.0, 'total_distance': 100.0,
+            'speed': 1000.0, 'avg_speed': 1000.0/3.6, 'max_speed': 1000.0/3.6,
+            'total_elapsed_time': 1000.0, 'total_timer_time': 1000.0,
+            'power': 1.0, 'temperature': 1.0, 'altitude': 5.0}
         bias = {'altitude': -500.0}
         for col in df.columns:
             if col not in scales:

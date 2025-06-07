@@ -49,14 +49,12 @@ func getArrowType(fieldName string) arrow.DataType {
 		return arrow.FixedWidthTypes.Timestamp_s
 	case "position_lat", "position_long":
 		return arrow.PrimitiveTypes.Int32
-	case "distance", "total_distance":
+	case "distance", "total_distance", "total_elapsed_time", "total_timer_time":
 		return arrow.PrimitiveTypes.Uint32
 	case "power", "speed", "altitude", "avg_speed", "max_speed", "avg_power", "max_power", "total_ascent", "total_descent":
 		return arrow.PrimitiveTypes.Uint16
 	case "temperature":
 		return arrow.PrimitiveTypes.Int8
-	case "total_elapsed_time", "total_timer_time":
-		return arrow.PrimitiveTypes.Float32
 	default:
 		// MODIFIED: Changed panic to an error for graceful failure
 		panic(fmt.Sprintf("Unsupported field name: %s", fieldName))
@@ -224,8 +222,13 @@ func processLaps(activity *fit.ActivityFile, out io.Writer) error {
 					b.Append(arrow.Timestamp(lap.StartTime.Unix()))
 				}
 			case *array.Uint32Builder:
-				if fieldName == "total_distance" {
+				switch fieldName {
+				case "total_distance":
 					b.Append(lap.TotalDistance)
+				case "total_elapsed_time":
+					b.Append(lap.TotalElapsedTime)
+				case "total_timer_time":
+					b.Append(lap.TotalTimerTime)
 				}
 			case *array.Uint16Builder:
 				switch fieldName {
@@ -241,13 +244,6 @@ func processLaps(activity *fit.ActivityFile, out io.Writer) error {
 					b.Append(lap.TotalAscent)
 				case "total_descent":
 					b.Append(lap.TotalDescent)
-				}
-			case *array.Float32Builder:
-				switch fieldName {
-				case "total_elapsed_time":
-					b.Append(float32(lap.TotalElapsedTime))
-				case "total_timer_time":
-					b.Append(float32(lap.TotalTimerTime))
 				}
 			}
 		}
