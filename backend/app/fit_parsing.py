@@ -51,7 +51,7 @@ def go_extract_data(go_program_path: str, fit_file_content: bytes):
         # Use subprocess.Popen to run the Go program
         # Capture stdout, stderr, and provide stdin
         process = subprocess.Popen(
-            [go_program_path],
+            [go_program_path, "-type=records"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
