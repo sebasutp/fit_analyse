@@ -25,7 +25,7 @@ const formatDateTime = (dateTimeString) => {
     const date = new Date(dateTimeString);
     // Check if date is valid after parsing
     if (isNaN(date.getTime())) {
-        return 'Invalid Date';
+      return 'Invalid Date';
     }
     return date.toLocaleString(); // Adjust format as needed
   } catch (e) {
@@ -86,9 +86,8 @@ function LapsTable({ laps }) {
                 scope="col"
                 // Conditionally apply 'hidden sm:table-cell' for columns not in displayHeaders
                 // This means they will be hidden on small screens and shown on 'sm' (small) and larger screens.
-                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300 ${
-                  displayHeaders.includes(header.key) ? '' : 'hidden sm:table-cell'
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300 ${displayHeaders.includes(header.key) ? '' : 'hidden sm:table-cell'
+                  }`}
               >
                 {header.label}
               </th>
@@ -106,100 +105,94 @@ function LapsTable({ laps }) {
                 {/* Lap Number - always visible */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white hidden sm:table-cell">
                   {index + 1}
-              </td>
+                </td>
 
-              {/* Timestamp (End) - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatDateTime(lap.timestamp)}
-              </td>
+                {/* Timestamp (End) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatDateTime(lap.timestamp)}
+                </td>
 
-              {/* Start Time - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatDateTime(lap.start_time)}
-              </td>
+                {/* Start Time - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatDateTime(lap.start_time)}
+                </td>
 
-              {/* Distance (km) - always visible */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                {formatNumber(lap.total_distance / 1000, 1)}
-              </td>
+                {/* Distance (km) - always visible */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                  {formatNumber(lap.total_distance / 1000, 1)}
+                </td>
 
-              {/* Elapsed Time - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatDuration(lap.total_elapsed_time)}
-              </td>
+                {/* Elapsed Time - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatDuration(lap.total_elapsed_time)}
+                </td>
 
-              {/* Timer Time - always visible */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                {formatDuration(lap.total_timer_time)}
-              </td>
+                {/* Timer Time - always visible */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                  {formatDuration(lap.total_timer_time)}
+                </td>
 
-              {/* Avg Speed (km/h) - always visible */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                {formatNumber(lap.avg_speed)}
-              </td>
+                {/* Avg Speed (km/h) - always visible */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                  {formatNumber(lap.avg_speed)}
+                </td>
 
-              {/* Max Speed (km/h) - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatNumber(lap.max_speed)}
-              </td>
+                {/* Max Speed (km/h) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.max_speed)}
+                </td>
 
-              {/* Avg Power (W) - always visible */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                {formatNumber(lap.power_summary?.average_power, 0)}
-              </td>
+                {/* Avg Power (W) - always visible */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                  {formatNumber(lap.power_summary?.average_power, 0)}
+                </td>
 
-              {/* Max Power (W) - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatNumber(lap.max_power, 0)}
-              </td>
+                {/* Max Power (W) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.max_power, 0)}
+                </td>
 
-              {/* Median Power (W) - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatNumber(lap.power_summary?.median_power, 0)}
-              </td>
+                {/* Median Power (W) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.power_summary?.median_power, 0)}
+                </td>
 
-              {/* Ascent (m) - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatNumber(lap.total_ascent, 0)}
-              </td>
+                {/* Ascent (m) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.total_ascent, 0)}
+                </td>
 
-              {/* Descent (m) - hidden on small screens */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
-                {formatNumber(lap.total_descent, 0)}
-              </td>
-            </tr>
-            {expandedLaps[index] && (
-              <tr key={`lap-details-${index}`} className="bg-gray-100 dark:bg-gray-700">
-                <td colSpan={tableHeaders.length} className="p-4 text-sm text-gray-700 dark:text-gray-200">
-                  {lap.power_summary && lap.power_summary.quantiles ? (
-                    <div className="flex flex-col items-center space-y-4">
-                      <div className="w-full md:w-2/3 lg:w-1/2">
-                        <PowerCdfPlot powerQuantiles={lap.power_summary.quantiles} />
-                      </div>
-                      <div className="flex flex-row justify-around mt-2 w-full md:w-2/3 lg:w-1/2">
-                        <Metric label="Average Power" value={formatNumber(lap.power_summary.average_power, 0)} unit="W" />
-                        <Metric label="Median Power" value={formatNumber(lap.power_summary.median_power, 0)} unit="W" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 items-baseline">
-                      <div><strong>Timestamp (End):</strong> {formatDateTime(lap.timestamp)}</div>
-                      <div><strong>Start Time:</strong> {formatDateTime(lap.start_time)}</div>
+                {/* Descent (m) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.total_descent, 0)}
+                </td>
+              </tr>
+              {expandedLaps[index] && (
+                <tr key={`lap-details-${index}`} className="bg-gray-100 dark:bg-gray-700">
+                  <td colSpan={tableHeaders.length} className="p-4 text-sm text-gray-700 dark:text-gray-200">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 items-baseline">
                       <div><strong>Elapsed Time:</strong> {formatDuration(lap.total_elapsed_time)}</div>
+                      <div><strong>Average Power:</strong> {formatNumber(lap.power_summary.average_power, 0)} W</div>
+                      <div><strong>Median Power:</strong> {formatNumber(lap.power_summary.median_power, 0)} W</div>
+                      <div><strong>Max Power:</strong> {formatNumber(lap.max_power, 0)} W</div>
+                      <div><strong>Total work:</strong> {formatNumber(lap.power_summary.total_work, 0)} J</div>
                       <div><strong>Max Speed:</strong> {formatNumber(lap.max_speed)} km/h</div>
-                      {lap.power_summary && lap.power_summary.median_power !== undefined && !lap.power_summary.quantiles && (
-                        <div><strong>Median Power:</strong> {formatNumber(lap.power_summary.median_power, 0)} W</div>
-                      )}
-                      {lap.max_power !== undefined && (!lap.power_summary || lap.power_summary.average_power === undefined) && (
-                        <div><strong>Max Power:</strong> {formatNumber(lap.max_power, 0)} W</div>
-                      )}
                       <div><strong>Ascent:</strong> {formatNumber(lap.total_ascent, 0)} m</div>
                       <div><strong>Descent:</strong> {formatNumber(lap.total_descent, 0)} m</div>
                     </div>
-                  )}
-                </td>
-              </tr>
-            )}
+                    {lap.power_summary && lap.power_summary.quantiles ? (
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="w-full md:w-2/3 lg:w-1/2">
+                          <PowerCdfPlot powerQuantiles={lap.power_summary.quantiles} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
             </React.Fragment>
           ))}
         </tbody>
