@@ -7,6 +7,7 @@ from typing import Optional, Union, Sequence
 
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, LargeBinary
 
 class UserLogin(SQLModel):
     email: EmailStr = Field(...)
@@ -109,6 +110,8 @@ class ActivityTable(ActivityBase, table=True):
     data: bytes = Field(...)
     static_map: Optional[bytes] = Field(...)
     laps_data: Optional[bytes] = Field(default=None)
+    fit_file: Optional[bytes] = Field(default=None, sa_column=Column(LargeBinary, nullable=True))
+    fit_file_parsed_at: Optional[datetime] = Field(default=None, nullable=True)
 
 class ActivityUpdate(BaseModel):
     name: Optional[str] = None
