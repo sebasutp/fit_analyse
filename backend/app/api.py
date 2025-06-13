@@ -163,9 +163,9 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
     Checks if an activity's FIT data needs re-computation based on an environment variable
     and the last parsed timestamp. If so, performs the re-computation and updates the activity.
     """
-    env_var_str = os.getenv("TRIGGER_FIT_RECOMPUTATION_AFTER")
+    env_var_str = os.getenv("TRIGGER_FIT_RECOMPUTATION_BEFORE")
     if not env_var_str:
-        logging.debug("TRIGGER_FIT_RECOMPUTATION_AFTER not set. Proceeding without re-computation check.")
+        logging.debug("TRIGGER_FIT_RECOMPUTATION_BEFORE not set. Proceeding without re-computation check.")
         return False
 
     try:
@@ -186,7 +186,7 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
                 logging.debug(f"Conditions for re-computation not met for activity {activity.activity_id} (missing FIT file or parsed_at date).")
             return False
 
-        logging.info(f"Triggering re-computation for activity {activity.activity_id} based on TRIGGER_FIT_RECOMPUTATION_AFTER ({env_var_str}). Parsed at: {fit_parsed_at_aware}")
+        logging.info(f"Triggering re-computation for activity {activity.activity_id} based on TRIGGER_FIT_RECOMPUTATION_BEFORE ({env_var_str}). Parsed at: {fit_parsed_at_aware}")
 
         recomputed_ride_df = fit_parsing.extract_data_to_dataframe(activity.fit_file)
 
@@ -224,7 +224,7 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
         return True
 
     except Exception as e:
-        logging.warning(f"Failed to parse TRIGGER_FIT_RECOMPUTATION_AFTER ('{env_var_str}') or error during re-computation check for activity {activity.activity_id}: {e}. Proceeding without re-computation.")
+        logging.warning(f"Failed to parse TRIGGER_FIT_RECOMPUTATION_BEFORE ('{env_var_str}') or error during re-computation check for activity {activity.activity_id}: {e}. Proceeding without re-computation.")
         return False
 
 
