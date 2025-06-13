@@ -3,9 +3,10 @@
 import os
 import json
 import logging
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from typing import Annotated, Optional
 import pandas as pd
+from dateutil import parser as date_parser
 
 import msgpack
 
@@ -30,6 +31,7 @@ app_obj.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+logger = logging.getLogger('uvicorn.error')
 
 # route handlers
 
@@ -143,6 +145,12 @@ async def upload_activity(
         data=model_helpers.serialize_dataframe(ride_df),
         tags=None
     )
+
+    # Add FIT file specific data if it's a FIT file
+    if filename.endswith('.fit'):
+        activity_db.fit_file = file_bytes
+        activity_db.fit_file_parsed_at = datetime.now(datetime.now().astimezone().tzinfo)
+
     # Add laps_data if available
     if laps_df is not None and not laps_df.empty:
         activity_db.laps_data = model_helpers.serialize_dataframe(laps_df)
@@ -151,6 +159,78 @@ async def upload_activity(
     session.commit()
     session.refresh(activity_db)
     return activity_db
+
+
+def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, session: Session) -> bool:
+    """
+    Checks if an activity's FIT data needs re-computation based on an environment variable
+    and the last parsed timestamp. If so, performs the re-computation and updates the activity.
+    """
+    env_var_str = os.getenv("TRIGGER_FIT_RECOMPUTATION_BEFORE")
+    logger.info(f"TRIGGER_FIT_RECOMPUTATION_BEFORE set to: {env_var_str}")
+    if not env_var_str:
+        logger.debug("TRIGGER_FIT_RECOMPUTATION_BEFORE not set. Proceeding without re-computation check.")
+        return False
+
+    try:
+        parsed_date = date_parser.parse(env_var_str).date()
+        recomputation_trigger_datetime = datetime.combine(parsed_date, datetime.min.time(), tzinfo=timezone.utc)
+
+        fit_parsed_at_aware = None
+        if activity.fit_file_parsed_at:
+            if activity.fit_file_parsed_at.tzinfo is None:
+                fit_parsed_at_aware = activity.fit_file_parsed_at.replace(tzinfo=timezone.utc)
+            else:
+                fit_parsed_at_aware = activity.fit_file_parsed_at
+
+        if not (activity.fit_file and fit_parsed_at_aware and fit_parsed_at_aware < recomputation_trigger_datetime):
+            if activity.fit_file and fit_parsed_at_aware:
+                logger.debug(f"No re-computation needed for activity {activity.activity_id}. Parsed at: {fit_parsed_at_aware}, Trigger date: {recomputation_trigger_datetime}")
+            else:
+                logger.debug(f"Conditions for re-computation not met for activity {activity.activity_id} (missing FIT file or parsed_at date).")
+            return False
+
+        logger.info(f"Triggering re-computation for activity {activity.activity_id} based on TRIGGER_FIT_RECOMPUTATION_BEFORE ({env_var_str}). Parsed at: {fit_parsed_at_aware}")
+
+        recomputed_ride_df = fit_parsing.extract_data_to_dataframe(activity.fit_file)
+
+        if recomputed_ride_df is None or recomputed_ride_df.empty:
+            logger.warning(f"Re-computation of FIT file for activity {activity.activity_id} failed or resulted in empty data. Original data will be served.")
+            return False
+
+        activity.data = model_helpers.serialize_dataframe(recomputed_ride_df)
+        summary = model_helpers.compute_activity_summary(ride_df=recomputed_ride_df)
+
+        activity.distance = summary.distance if summary.distance is not None else 0
+        activity.active_time = summary.active_time if summary.active_time is not None else 0
+        activity.elevation_gain = summary.elevation_gain if summary.elevation_gain is not None else 0
+
+        activity.fit_file_parsed_at = datetime.now(datetime.now().astimezone().tzinfo)
+
+        if activity.laps_data: # Check if laps_data was originally present
+            go_executable = os.getenv("FIT_PARSE_GO_EXECUTABLE")
+            if go_executable:
+                laps_df = fit_parsing.go_extract_laps_data(go_executable, activity.fit_file)
+                if laps_df is not None and not laps_df.empty:
+                    activity.laps_data = model_helpers.serialize_dataframe(laps_df)
+                    logger.info(f"Successfully recomputed laps for activity {activity.activity_id}")
+                elif laps_df is None:
+                    logger.warning(f"Laps re-computation returned None for activity {activity.activity_id}")
+                else: # laps_df is empty
+                    logger.warning(f"Laps re-computation resulted in empty DataFrame for activity {activity.activity_id}")
+            else:
+                logger.warning(f"FIT_PARSE_GO_EXECUTABLE not set. Cannot re-extract lap data for activity {activity.activity_id}.")
+
+        session.add(activity)
+        session.commit()
+        session.refresh(activity)
+        logger.info(f"Successfully recomputed and updated activity {activity.activity_id}")
+        return True
+
+    except Exception as e:
+        logging.warning(f"Failed to parse TRIGGER_FIT_RECOMPUTATION_BEFORE ('{env_var_str}') or error during re-computation check for activity {activity.activity_id}: {e}. Proceeding without re-computation.")
+        return False
+
 
 @app_obj.get("/activity/{activity_id}", response_model=model.ActivityResponse)
 async def get_activity(
@@ -162,6 +242,10 @@ async def get_activity(
     activity = session.exec(q).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
+
+    if _trigger_activity_recomputation_if_needed(activity, session):
+        logging.info(f"Activity {activity_id} data was recomputed based on trigger.")
+
     activity_response = model_helpers.get_activity_response(activity, include_raw_data=False)
     return activity_response
 
