@@ -12,18 +12,25 @@ function Activities() {
   const [cursorId, setCursorId] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [selectedTab, setSelectedTab] = useState('recorded'); // Default tab
+  const [searchQuery, setSearchQuery] = useState(''); // Added for search
 
   const limit = parseInt(import.meta.env.VITE_ACTIVITY_PAGE_LIMIT) || 10;
   const navigate = useNavigate();
   const token = GetToken();
 
-  const loadActivities = useCallback((isInitialLoad = false, tab = selectedTab) => {
+  // loadActivities will now use selectedTab and searchQuery from state directly
+  const loadActivities = useCallback((isInitialLoad = false) => {
     if (isLoading || (!isInitialLoad && !hasMore)) {
       return;
     }
 
     setIsLoading(true);
-    let url = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=${limit}&activity_type=${tab}`;
+    // Use selectedTab and searchQuery from state
+    let url = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=${limit}&activity_type=${selectedTab}`;
+
+    if (searchQuery) {
+      url += `&search_query=${encodeURIComponent(searchQuery)}`;
+    }
 
     if (!isInitialLoad && cursorDate && cursorId) {
       url += `&cursor_date=${encodeURIComponent(cursorDate)}&cursor_id=${encodeURIComponent(cursorId)}`;
@@ -51,21 +58,22 @@ function Activities() {
         console.error('Error fetching activity details:', error);
         setIsLoading(false); // Ensure loading state is reset on error
       });
-  }, [token, navigate, isLoading, hasMore, cursorDate, cursorId, limit]); // Add dependencies
+  }, [token, navigate, isLoading, hasMore, cursorDate, cursorId, limit, selectedTab, searchQuery]); // Added selectedTab and searchQuery
 
+  // This useEffect handles initial load and changes to token, selectedTab, or searchQuery
   useEffect(() => {
     if (!token) {
       console.log("Token not found redirecting to /login");
       navigate("/login");
     } else {
-      // Initial load or tab change
-      setActivities([]); // Clear activities
-      setCursorDate(null); // Reset cursor
-      setCursorId(null);   // Reset cursor
-      setHasMore(true);    // Assume more data for the new tab
-      loadActivities(true, selectedTab); // Pass selectedTab
+      setActivities([]);
+      setCursorDate(null);
+      setCursorId(null);
+      setHasMore(true);
+      loadActivities(true); // loadActivities will use selectedTab and searchQuery from state
     }
-  }, [navigate, token, selectedTab]); // Re-run when selectedTab changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, token, selectedTab, searchQuery]); // loadActivities is not in this dep array.
 
   // Effect for infinite scrolling
   useEffect(() => {
@@ -76,18 +84,29 @@ function Activities() {
         !isLoading &&
         hasMore
       ) {
-        loadActivities();
+        loadActivities(false); // Pass false for non-initial load
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     // Cleanup function to remove the event listener when the component unmounts
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isLoading, hasMore, loadActivities]); // Re-run effect if these dependencies change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, hasMore, loadActivities]); // loadActivities is a dependency here.
 
   return (
     <div>
       <NewActivity />
+      {/* Search Input */}
+      <div style={{ margin: '20px 0', textAlign: 'center' }}>
+        <input
+          type="text"
+          placeholder="Search by title or tag..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ padding: '10px', width: '300px' }}
+        />
+      </div>
       {/* Tab Navigation */}
       <div style={{ marginBottom: '20px', textAlign: 'center' }}>
         <button

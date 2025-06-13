@@ -26,6 +26,15 @@ export function ActivityCard({activity}) {
           <Metric name="Elev. Gain" value={activity.elevation_gain} unit="m" />
           <MetricBox name="Time" value={getElapsedTime(activity.active_time)} />
         </div>
+        {activity.tags && activity.tags.length > 0 && (
+          <div style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+            {activity.tags.map((tag, index) => (
+              <span key={index} style={{ backgroundColor: '#e0e0e0', padding: '3px 8px', borderRadius: '12px', fontSize: '0.8em' }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
         {mapImageError ? (
           <div className="no-map-image">
             <p>Indoor ride</p>

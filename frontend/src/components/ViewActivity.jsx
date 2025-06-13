@@ -15,6 +15,7 @@ function ViewActivity() {
   const [activity, setActivity] = useState({});
   const [currentActivityName, setCurrentActivityName] = useState("");
   const [currentActivityDate, setCurrentActivityDate] = useState("");
+  const [currentActivityTags, setCurrentActivityTags] = useState(""); // Added for tags
   const [isLoading, setIsLoading] = useState(false);
   const [is_loading_main_activity, setIsLoadingMainActivity] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -31,6 +32,7 @@ function ViewActivity() {
         setActivity(data);
         setCurrentActivityName(data?.activity_base?.name || "");
         setCurrentActivityDate(data?.activity_base?.date || "");
+        setCurrentActivityTags(data?.activity_base?.tags ? data.activity_base.tags.join(", ") : ""); // Initialize tags
         setIsLoadingMainActivity(false);
       })
       .catch((error) => {
@@ -39,6 +41,9 @@ function ViewActivity() {
   }, [id]);
 
   const onClickEdit = () => {
+    setCurrentActivityName(activity?.activity_base?.name || "");
+    setCurrentActivityDate(activity?.activity_base?.date || "");
+    setCurrentActivityTags(activity?.activity_base?.tags ? activity.activity_base.tags.join(", ") : "");
     setEditMode(true);
   }
 
@@ -67,12 +72,15 @@ function ViewActivity() {
   const onClickCancel = () => {
     setCurrentActivityName(activity?.activity_base?.name || "");
     setCurrentActivityDate(activity?.activity_base?.date || "");
+    setCurrentActivityTags(activity?.activity_base?.tags ? activity.activity_base.tags.join(", ") : ""); // Reset tags on cancel
     setEditMode(false);
   }
 
   const onClickSave = () => {
     setIsLoading(true);
     const url = `${import.meta.env.VITE_BACKEND_URL}/activity/${id}`;
+    const tagsArray = currentActivityTags.split(',').map(tag => tag.trim()).filter(tag => tag !== "");
+
     fetch(url, {
       method: "PATCH",
       headers: {
@@ -81,15 +89,31 @@ function ViewActivity() {
       },
       body: JSON.stringify({
         name: currentActivityName,
-        date: currentActivityDate
+        date: currentActivityDate,
+        tags: tagsArray // Add tags to request
       })
     })
       .then((response) => response.json())
       .then((data) => {
-        const { name, date } = data;
+        // Assuming backend returns the full updated activity_base or at least name, date, tags
+        const newName = data.name || (data.activity_base && data.activity_base.name) || "";
+        const newDate = data.date || (data.activity_base && data.activity_base.date) || "";
+        const newTags = data.tags || (data.activity_base && data.activity_base.tags) || [];
 
-        setCurrentActivityName(name);
-        setCurrentActivityDate(date);
+        setCurrentActivityName(newName);
+        setCurrentActivityDate(newDate);
+        setCurrentActivityTags(newTags.join(", "));
+
+        // Update the main activity state to reflect changes immediately
+        setActivity(prevActivity => ({
+          ...prevActivity,
+          activity_base: {
+            ...prevActivity.activity_base,
+            name: newName,
+            date: newDate,
+            tags: newTags
+          }
+        }));
       })
       .catch((error) => {
         console.error("Error updating the activity details:", error);
@@ -143,6 +167,22 @@ function ViewActivity() {
                       }}
                     />
                   </div>
+                  <div>
+                    <label
+                      htmlFor="tags"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Tags (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      id="tags"
+                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                      placeholder="e.g. running, outdoor, fast"
+                      value={currentActivityTags}
+                      onChange={(e) => setCurrentActivityTags(e.target.value)}
+                    />
+                  </div>
                   <button
                     className="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:outline-none focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 items-center"
                     onClick={onClickCancel}
@@ -170,6 +210,15 @@ function ViewActivity() {
                   </div>
                   <h1 className="activity-title">{currentActivityName}</h1>
                   <p className="activity-date">{currentActivityDate}</p>
+                  {activity.activity_base && activity.activity_base.tags && activity.activity_base.tags.length > 0 && (
+                    <div style={{ marginTop: '10px', marginBottom: '15px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                      {activity.activity_base.tags.map((tag, index) => (
+                        <span key={index} style={{ backgroundColor: '#f0f0f0', padding: '5px 10px', borderRadius: '15px', fontSize: '0.9em' }}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>

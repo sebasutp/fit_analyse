@@ -348,3 +348,49 @@ def get_activity_gpx(ride_df: pd.DataFrame):
         gpx_segment.points.append(gpx_point)
 
     return gpx.to_xml()
+
+
+import re
+
+# Assuming ActivityTable is already available via 'from app import model'
+# and Sequence from 'from typing import Sequence'
+
+def search_and_rank_activities(
+    activities: Sequence[model.ActivityTable],
+    search_query: str
+) -> list[model.ActivityTable]:
+    if not search_query:
+        return list(activities)
+
+    search_terms = {term.lower() for term in re.split(r'\s+', search_query.strip()) if term}
+    if not search_terms:
+        return list(activities)
+
+    scored_activities = []
+
+    for activity in activities:
+        score = 0
+
+        # Score based on title match
+        activity_title_words = set()
+        if activity.name: # Ensure name is not None
+            activity_title_words = {word.lower() for word in re.split(r'\s+', activity.name.strip()) if word}
+        score += len(search_terms.intersection(activity_title_words))
+
+        # Score based on tag match
+        if activity.tags:
+            activity_tags_lower = {tag.lower() for tag in activity.tags}
+            score += len(search_terms.intersection(activity_tags_lower))
+
+        if score > 0:
+            scored_activities.append({"activity": activity, "score": score})
+
+    # Sort activities by score in descending order
+    # If scores are equal, sort by date as secondary to maintain some stability
+    sorted_activities_with_scores = sorted(
+        scored_activities,
+        key=lambda x: (x["score"], x["activity"].date),
+        reverse=True
+    )
+
+    return [item["activity"] for item in sorted_activities_with_scores]
