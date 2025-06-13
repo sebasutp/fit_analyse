@@ -30,6 +30,7 @@ app_obj.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+logger = logging.getLogger('uvicorn.error')
 
 # route handlers
 
@@ -164,8 +165,9 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
     and the last parsed timestamp. If so, performs the re-computation and updates the activity.
     """
     env_var_str = os.getenv("TRIGGER_FIT_RECOMPUTATION_BEFORE")
+    logger.info(f"TRIGGER_FIT_RECOMPUTATION_BEFORE set to: {env_var_str}")
     if not env_var_str:
-        logging.debug("TRIGGER_FIT_RECOMPUTATION_BEFORE not set. Proceeding without re-computation check.")
+        logger.debug("TRIGGER_FIT_RECOMPUTATION_BEFORE not set. Proceeding without re-computation check.")
         return False
 
     try:
@@ -181,17 +183,17 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
 
         if not (activity.fit_file and fit_parsed_at_aware and fit_parsed_at_aware < recomputation_trigger_datetime):
             if activity.fit_file and fit_parsed_at_aware:
-                 logging.debug(f"No re-computation needed for activity {activity.activity_id}. Parsed at: {fit_parsed_at_aware}, Trigger date: {recomputation_trigger_datetime}")
+                logger.debug(f"No re-computation needed for activity {activity.activity_id}. Parsed at: {fit_parsed_at_aware}, Trigger date: {recomputation_trigger_datetime}")
             else:
-                logging.debug(f"Conditions for re-computation not met for activity {activity.activity_id} (missing FIT file or parsed_at date).")
+                logger.debug(f"Conditions for re-computation not met for activity {activity.activity_id} (missing FIT file or parsed_at date).")
             return False
 
-        logging.info(f"Triggering re-computation for activity {activity.activity_id} based on TRIGGER_FIT_RECOMPUTATION_BEFORE ({env_var_str}). Parsed at: {fit_parsed_at_aware}")
+        logger.info(f"Triggering re-computation for activity {activity.activity_id} based on TRIGGER_FIT_RECOMPUTATION_BEFORE ({env_var_str}). Parsed at: {fit_parsed_at_aware}")
 
         recomputed_ride_df = fit_parsing.extract_data_to_dataframe(activity.fit_file)
 
         if recomputed_ride_df is None or recomputed_ride_df.empty:
-            logging.warning(f"Re-computation of FIT file for activity {activity.activity_id} failed or resulted in empty data. Original data will be served.")
+            logger.warning(f"Re-computation of FIT file for activity {activity.activity_id} failed or resulted in empty data. Original data will be served.")
             return False
 
         activity.data = model_helpers.serialize_dataframe(recomputed_ride_df)
@@ -209,18 +211,18 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
                 laps_df = fit_parsing.go_extract_laps_data(go_executable, activity.fit_file)
                 if laps_df is not None and not laps_df.empty:
                     activity.laps_data = model_helpers.serialize_dataframe(laps_df)
-                    logging.info(f"Successfully recomputed laps for activity {activity.activity_id}")
+                    logger.info(f"Successfully recomputed laps for activity {activity.activity_id}")
                 elif laps_df is None:
-                    logging.warning(f"Laps re-computation returned None for activity {activity.activity_id}")
+                    logger.warning(f"Laps re-computation returned None for activity {activity.activity_id}")
                 else: # laps_df is empty
-                    logging.warning(f"Laps re-computation resulted in empty DataFrame for activity {activity.activity_id}")
+                    logger.warning(f"Laps re-computation resulted in empty DataFrame for activity {activity.activity_id}")
             else:
-                logging.warning(f"FIT_PARSE_GO_EXECUTABLE not set. Cannot re-extract lap data for activity {activity.activity_id}.")
+                logger.warning(f"FIT_PARSE_GO_EXECUTABLE not set. Cannot re-extract lap data for activity {activity.activity_id}.")
 
         session.add(activity)
         session.commit()
         session.refresh(activity)
-        logging.info(f"Successfully recomputed and updated activity {activity.activity_id}")
+        logger.info(f"Successfully recomputed and updated activity {activity.activity_id}")
         return True
 
     except Exception as e:
