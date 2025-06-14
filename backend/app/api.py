@@ -14,12 +14,13 @@ from fastapi import Body, Depends, FastAPI, HTTPException, File, UploadFile
 from fastapi.responses import StreamingResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session, select
+from sqlmodel import Session, select # Removed or_
 
 from app.auth import auth_handler
 from app.auth import crypto
 from app import model, model_helpers, fit_parsing, gpx_parsing
-from app.fit_parsing import go_extract_laps_data # Ensure this is correctly placed if not covered by above
+from app.fit_parsing import go_extract_laps_data
+from app.model_helpers import search_and_rank_activities # Added import
 
 app_obj = FastAPI()
 app_obj.add_middleware(
@@ -141,7 +142,8 @@ async def upload_activity(
         elevation_gain=elevation_gain,
         date=activity_date,
         last_modified=datetime.now(datetime.now().astimezone().tzinfo), # Use timezone-aware datetime
-        data=model_helpers.serialize_dataframe(ride_df)
+        data=model_helpers.serialize_dataframe(ride_df),
+        tags=None
     )
 
     # Add FIT file specific data if it's a FIT file
@@ -311,6 +313,7 @@ async def get_activities(
     session: Session = Depends(model_helpers.get_db_session),
     current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
     activity_type: Optional[str] = None, # New query parameter for filtering
+    search_query: Optional[str] = None,
     limit: int = 10, # Default limit
     cursor_date: Optional[datetime] = None, # The 'date' of the last item seen
     cursor_id: Optional[str] = None # The 'activity_id' of the last item seen
@@ -326,19 +329,31 @@ async def get_activities(
     if activity_type:
         q = q.where(model.ActivityTable.activity_type == activity_type)
 
-    # Apply cursor conditions if provided (for subsequent pages)
-    if cursor_date is not None and cursor_id is not None:
-        # Fetch items older than the cursor date, or same date but smaller ID (since ID is random string, comparison works)
-        # Note: Adjust comparison (< or >) based on desired sort order (DESC vs ASC)
-        q = q.where(
-            (model.ActivityTable.date < cursor_date) |
-            ((model.ActivityTable.date == cursor_date) & (model.ActivityTable.activity_id < cursor_id))
-        )
+    # If there's a search query, database-level cursor pagination before sorting by score is not effective.
+    # We fetch all, then score/sort, then limit.
+    if search_query:
+        # TODO(sebasutp): Think of a better way of filtering. It seems like the JSON type we use in the DB
+        # supports querying inside the structure itself.
+        # Fetch all activities matching basic filters (owner, type)
+        # Order by date desc as a baseline before scoring, though search_and_rank_activities also sorts by date as secondary.
+        all_matching_activities = session.exec(q.order_by(model.ActivityTable.date.desc())).all()
 
-    # Always apply sorting and limit
-    q = q.order_by(model.ActivityTable.date.desc(), model.ActivityTable.activity_id.desc()).limit(limit)
+        # Perform search and ranking
+        ranked_activities = search_and_rank_activities(all_matching_activities, search_query)
 
-    results = session.exec(q).all()
+        # Apply limit to the ranked list
+        results = ranked_activities[:limit]
+    else:
+        # Original behavior: No search query, use cursor-based pagination
+        if cursor_date is not None and cursor_id is not None:
+            q = q.where(
+                (model.ActivityTable.date < cursor_date) |
+                ((model.ActivityTable.date == cursor_date) & (model.ActivityTable.activity_id < cursor_id))
+            )
+        # Always apply sorting and limit for non-search case
+        q = q.order_by(model.ActivityTable.date.desc(), model.ActivityTable.activity_id.desc()).limit(limit)
+        results = session.exec(q).all()
+
     return results
 
 @app_obj.patch("/activity/{activity_id}", response_model=model.ActivityBase)

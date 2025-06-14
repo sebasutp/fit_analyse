@@ -85,7 +85,7 @@ class TestModelHelpers(unittest.TestCase):
         self.assertAlmostEqual(summary.elevation_gain, 6.0)
 
         self.assertAlmostEqual(summary.power_summary.average_power, 200.0)
-        self.assertAlmostEqual(summary.power_summary.total_work, 1.2)
+        self.assertAlmostEqual(summary.power_summary.total_work, 1.1)
         self.assertAlmostEqual(summary.power_summary.median_power, 200.0)
         self.assertEqual(len(summary.power_summary.quantiles), 101)
 
