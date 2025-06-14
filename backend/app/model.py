@@ -3,11 +3,11 @@
 
 import os
 from datetime import datetime
-from typing import Optional, Union, Sequence, list
+from typing import Optional, Union, Sequence, List
 
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, SQLModel
-from sqlalchemy import Column, LargeBinary
+from sqlalchemy import Column, LargeBinary, JSON
 
 class UserLogin(SQLModel):
     email: EmailStr = Field(...)
@@ -95,7 +95,7 @@ class ActivityBase(SQLModel):
     #gear_id: int = Field(default=None, foreign_key="gear.id")
     date: datetime = Field(...)
     last_modified: datetime = Field(...)
-    tags: Optional[list[str]] = Field(default=None)
+    tags: Optional[List[str]] = Field(sa_column=Column(JSON))
 
 class ActivityResponse(BaseModel):
     activity_base: Optional[ActivityBase] = None

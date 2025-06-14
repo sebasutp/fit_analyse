@@ -359,6 +359,8 @@ def search_and_rank_activities(
     activities: Sequence[model.ActivityTable],
     search_query: str
 ) -> list[model.ActivityTable]:
+    # TODO(sebasutp): Support prefixes as well, so the search is not empty while the
+    # user types.
     if not search_query:
         return list(activities)
 

@@ -332,6 +332,8 @@ async def get_activities(
     # If there's a search query, database-level cursor pagination before sorting by score is not effective.
     # We fetch all, then score/sort, then limit.
     if search_query:
+        # TODO(sebasutp): Think of a better way of filtering. It seems like the JSON type we use in the DB
+        # supports querying inside the structure itself.
         # Fetch all activities matching basic filters (owner, type)
         # Order by date desc as a baseline before scoring, though search_and_rank_activities also sorts by date as secondary.
         all_matching_activities = session.exec(q.order_by(model.ActivityTable.date.desc())).all()
