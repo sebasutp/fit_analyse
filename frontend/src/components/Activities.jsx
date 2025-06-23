@@ -4,6 +4,7 @@ import NewActivity from './NewActivity'
 import { GetToken, ParseBackendResponse } from './Utils';
 import { ActivityCard } from './activity/ActivityCard';
 import loadingImg from '../assets/loading.gif';
+import { db } from '../db';
 
 function Activities() {
   const [activities, setActivities] = useState([]);
@@ -18,14 +19,14 @@ function Activities() {
   const navigate = useNavigate();
   const token = GetToken();
 
-  // loadActivities will now use selectedTab and searchQuery from state directly
+  // loadActivities will only update IndexedDB with the current page from the API
   const loadActivities = useCallback((isInitialLoad = false) => {
     if (isLoading || (!isInitialLoad && !hasMore)) {
       return;
     }
 
     setIsLoading(true);
-    // Use selectedTab and searchQuery from state
+
     let url = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=${limit}&activity_type=${selectedTab}`;
 
     if (searchQuery) {
@@ -43,22 +44,43 @@ function Activities() {
       }
     })
       .then(response => ParseBackendResponse(response, navigate))
-      .then(newActivities => {
+      .then(async newActivities => {
         setActivities(prevActivities => isInitialLoad ? newActivities : [...prevActivities, ...newActivities]);
+
+        // Only update IndexedDB with the current page
+        try {
+          if (isInitialLoad) {
+            await db.activities.clear();
+          }
+          if (newActivities.length > 0) {
+            await db.activities.bulkPut(newActivities);
+            console.log(`${newActivities.length} activities updated/added to IndexedDB (current page only)`);
+          }
+        } catch (dbError) {
+          console.error('Error updating IndexedDB:', dbError);
+        }
 
         if (newActivities.length > 0) {
           const lastActivity = newActivities[newActivities.length - 1];
           setCursorDate(lastActivity.date);
           setCursorId(lastActivity.activity_id);
         }
-        setHasMore(newActivities.length === limit); // If we got less than limit, there's no more
+        setHasMore(newActivities.length === limit);
         setIsLoading(false);
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.error('Error fetching activity details:', error);
-        setIsLoading(false); // Ensure loading state is reset on error
+
+        try {
+          const localActivities = await db.activities.toArray();
+          setActivities(localActivities);
+          setHasMore(false);
+        } catch (dbError) {
+          console.error('Error loading activities from IndexedDB:', dbError);
+        }
+        setIsLoading(false);
       });
-  }, [token, navigate, isLoading, hasMore, cursorDate, cursorId, limit, selectedTab, searchQuery]); // Added selectedTab and searchQuery
+  }, [token, navigate, isLoading, hasMore, cursorDate, cursorId, limit, selectedTab, searchQuery]);
 
   // This useEffect handles initial load and changes to token, selectedTab, or searchQuery
   useEffect(() => {
@@ -73,7 +95,7 @@ function Activities() {
       loadActivities(true); // loadActivities will use selectedTab and searchQuery from state
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, token, selectedTab, searchQuery]); // loadActivities is not in this dep array.
+  }, [navigate, token, selectedTab, searchQuery]); // loadActivities is not in this dep array for performance reasons
 
   // Effect for infinite scrolling
   useEffect(() => {
@@ -147,11 +169,11 @@ function Activities() {
       ) : (
         isLoading && <img src={loadingImg} alt="Loading..." /> 
       )}
-       {!isLoading && activities.length === 0 && !hasMore && (
-         <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
-            No activities found for this type.
-          </div>
-       )}
+      {!isLoading && activities.length === 0 && !hasMore && (
+        <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
+          No activities found for this type.
+        </div>
+      )}
     </div>
   );
 }
