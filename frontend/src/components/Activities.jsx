@@ -14,66 +14,12 @@ function Activities() {
   const [hasMore, setHasMore] = useState(true);
   const [selectedTab, setSelectedTab] = useState('recorded'); // Default tab
   const [searchQuery, setSearchQuery] = useState(''); // Added for search
-  const [isInitialDBSync, setIsInitialDBSync] = useState(false);
 
   const limit = parseInt(import.meta.env.VITE_ACTIVITY_PAGE_LIMIT) || 10;
   const navigate = useNavigate();
   const token = GetToken();
 
-  // Function to load all activities for the local database cache
-  const loadAllActivitiesForCache = useCallback(async () => {
-    if (!token) return;
-    
-    setIsInitialDBSync(true);
-    console.log("Starting full database synchronization...");
-    
-    let allActivities = [];
-    let hasMoreToLoad = true;
-    let tempCursorDate = null;
-    let tempCursorId = null;
-    
-    // We don't use selectedTab or searchQuery here to get ALL activities
-    let baseUrl = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=50`;
-    
-    try {
-      while (hasMoreToLoad) {
-        let url = baseUrl;
-        
-        if (tempCursorDate && tempCursorId) {
-          url += `&cursor_date=${encodeURIComponent(tempCursorDate)}&cursor_id=${encodeURIComponent(tempCursorId)}`;
-        }
-        
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        
-        const newActivities = await ParseBackendResponse(response, navigate);
-        
-        if (newActivities.length > 0) {
-          allActivities = [...allActivities, ...newActivities];
-          const lastActivity = newActivities[newActivities.length - 1];
-          tempCursorDate = lastActivity.date;
-          tempCursorId = lastActivity.activity_id;
-          hasMoreToLoad = newActivities.length === 50; // If we got less than 50, there are no more
-        } else {
-          hasMoreToLoad = false;
-        }
-      }
-      
-      // Update existing records or create new ones, but don't remove any data
-      await db.activities.bulkPut(allActivities);
-      console.log(`Synchronization completed: ${allActivities.length} activities updated in IndexedDB`);
-    } catch (error) {
-      console.error("Error during full synchronization:", error);
-    }
-    
-    setIsInitialDBSync(false);
-  }, [token, navigate]);
-
-  // loadActivities will load from indexed database if we are syncing
+  // loadActivities will only update IndexedDB with the current page from the API
   const loadActivities = useCallback((isInitialLoad = false) => {
     if (isLoading || (!isInitialLoad && !hasMore)) {
       return;
@@ -81,71 +27,6 @@ function Activities() {
 
     setIsLoading(true);
 
-    // If we're syncing the database or if it's a pagination load, try to load from IndexedDB
-    if (isInitialDBSync || !isInitialLoad) {
-      try {
-        (async () => {
-          let localActivities;
-          
-          if (selectedTab === 'recorded' || selectedTab === 'route') {
-            // Filter by activity type
-            localActivities = await db.activities
-              .filter(activity => activity.activity_type === selectedTab)
-              .toArray();
-          } else {
-            localActivities = await db.activities.toArray();
-          }
-          
-          // Filter by search if needed
-          if (searchQuery && searchQuery.trim() !== '') {
-            const query = searchQuery.toLowerCase();
-            localActivities = localActivities.filter(activity => 
-              (activity.title && activity.title.toLowerCase().includes(query)) ||
-              (activity.tags && activity.tags.some(tag => tag.toLowerCase().includes(query)))
-            );
-          }
-          
-          // Sort by date (most recent first)
-          localActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
-          
-          // Apply pagination
-          if (!isInitialLoad && cursorDate && cursorId) {
-            const cursorIndex = localActivities.findIndex(
-              a => a.date === cursorDate && a.activity_id === cursorId
-            );
-            if (cursorIndex !== -1 && cursorIndex + 1 < localActivities.length) {
-              localActivities = localActivities.slice(cursorIndex + 1, cursorIndex + 1 + limit);
-            } else {
-              localActivities = [];
-            }
-          } else {
-            // First page
-            localActivities = localActivities.slice(0, limit);
-          }
-          
-          if (isInitialLoad) {
-            setActivities(localActivities);
-          } else {
-            setActivities(prevActivities => [...prevActivities, ...localActivities]);
-          }
-          
-          if (localActivities.length > 0) {
-            const lastActivity = localActivities[localActivities.length - 1];
-            setCursorDate(lastActivity.date);
-            setCursorId(lastActivity.activity_id);
-          }
-          
-          setHasMore(localActivities.length === limit);
-          setIsLoading(false);
-        })();
-        return; // Exit to avoid calling the API
-      } catch (dbError) {
-        console.error('Error loading from IndexedDB:', dbError);
-        // If it fails, continue with the API call
-      }
-    }
-    
-    // If we're not syncing or loading from IndexedDB failed, call the API
     let url = `${import.meta.env.VITE_BACKEND_URL}/activities?limit=${limit}&activity_type=${selectedTab}`;
 
     if (searchQuery) {
@@ -166,11 +47,14 @@ function Activities() {
       .then(async newActivities => {
         setActivities(prevActivities => isInitialLoad ? newActivities : [...prevActivities, ...newActivities]);
 
-        // Update IndexedDB with new activities - only update matching records or create new ones
+        // Only update IndexedDB with the current page
         try {
+          if (isInitialLoad) {
+            await db.activities.clear();
+          }
           if (newActivities.length > 0) {
             await db.activities.bulkPut(newActivities);
-            console.log(`${newActivities.length} activities updated/added to IndexedDB`);
+            console.log(`${newActivities.length} activities updated/added to IndexedDB (current page only)`);
           }
         } catch (dbError) {
           console.error('Error updating IndexedDB:', dbError);
@@ -196,14 +80,7 @@ function Activities() {
         }
         setIsLoading(false);
       });
-  }, [token, navigate, isLoading, hasMore, cursorDate, cursorId, limit, selectedTab, searchQuery, isInitialDBSync]); // Added isInitialDBSync
-
-  // This useEffect handles the complete synchronization of the database
-  useEffect(() => {
-    if (token) {
-      loadAllActivitiesForCache();
-    }
-  }, [token, loadAllActivitiesForCache]);
+  }, [token, navigate, isLoading, hasMore, cursorDate, cursorId, limit, selectedTab, searchQuery]);
 
   // This useEffect handles initial load and changes to token, selectedTab, or searchQuery
   useEffect(() => {
@@ -241,12 +118,6 @@ function Activities() {
 
   return (
     <div>
-      {isInitialDBSync && (
-        <div style={{ textAlign: 'center', margin: '10px', padding: '5px', backgroundColor: '#f0f8ff', borderRadius: '5px' }}>
-          <img src={loadingImg} alt="Synchronizing..." style={{ width: '20px', marginRight: '10px' }} />
-          Synchronizing local database...
-        </div>
-      )}
       <NewActivity />
       {/* Search Input */}
       <div style={{ margin: '20px 0', textAlign: 'center' }}>
@@ -298,11 +169,11 @@ function Activities() {
       ) : (
         isLoading && <img src={loadingImg} alt="Loading..." /> 
       )}
-       {!isLoading && activities.length === 0 && !hasMore && (
-         <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
-            No activities found for this type.
-          </div>
-       )}
+      {!isLoading && activities.length === 0 && !hasMore && (
+        <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
+          No activities found for this type.
+        </div>
+      )}
     </div>
   );
 }

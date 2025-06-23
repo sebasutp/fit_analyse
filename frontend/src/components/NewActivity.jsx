@@ -39,7 +39,7 @@ function NewActivity() {
 
       console.log("Successfully added activity: ", data);
       setIsLoading(false);
-      // navigate(`/activity/${data.activity_id}`);
+      navigate(`/activity/${data.activity_id}`);
     })
     .catch(error => {
         // Handle error
