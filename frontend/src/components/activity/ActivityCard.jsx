@@ -6,6 +6,8 @@ export function ActivityCard({activity}) {
     const [mapImageUrl, setMapImageUrl] = useState(null);
     const [mapImageError, setMapImageError] = useState(false);
 
+    const isRoute = activity.activity_type === 'route';
+
     useEffect(() => {
         const imageUrl = `${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_id}`;
         setMapImageUrl(imageUrl);
@@ -24,7 +26,9 @@ export function ActivityCard({activity}) {
         <div className="row-container">
           <Metric name="Distance" value={activity.distance} unit="km" />
           <Metric name="Elev. Gain" value={activity.elevation_gain} unit="m" />
-          <MetricBox name="Time" value={getElapsedTime(activity.active_time)} />
+          {!isRoute && (
+            <MetricBox name="Time" value={getElapsedTime(activity.active_time)} />
+          )}
         </div>
         {activity.tags && activity.tags.length > 0 && (
           <div style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>

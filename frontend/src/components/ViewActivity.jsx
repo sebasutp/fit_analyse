@@ -23,6 +23,8 @@ function ViewActivity() {
   const token = GetToken();
   const navigate = useNavigate();
 
+  const isRoute = activity?.activity_base?.activity_type === 'route';
+
   useEffect(() => {
     setIsLoadingMainActivity(true);
     const url = `${import.meta.env.VITE_BACKEND_URL}/activity/${id}`;
@@ -150,23 +152,25 @@ function ViewActivity() {
                       }}
                     />
                   </div>
-                  <div>
-                    <label
-                      htmlFor="date"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      id="date"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                      value={currentActivityDate.slice(0, 16)}
-                      onChange={(e) => {
-                        setCurrentActivityDate(e.target.value);
-                      }}
-                    />
-                  </div>
+                  {!isRoute && (
+                    <div>
+                      <label
+                        htmlFor="date"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Date
+                      </label>
+                      <input
+                        type="datetime-local"
+                        id="date"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        value={currentActivityDate.slice(0, 16)}
+                        onChange={(e) => {
+                          setCurrentActivityDate(e.target.value);
+                        }}
+                      />
+                    </div>
+                  )}
                   <div>
                     <label
                       htmlFor="tags"
@@ -209,7 +213,9 @@ function ViewActivity() {
                     </button>
                   </div>
                   <h1 className="activity-title">{currentActivityName}</h1>
-                  <p className="activity-date">{currentActivityDate}</p>
+                  {!isRoute && (
+                    <p className="activity-date">{currentActivityDate}</p>
+                  )}
                   {activity.activity_base && activity.activity_base.tags && activity.activity_base.tags.length > 0 && (
                     <div style={{ marginTop: '10px', marginBottom: '15px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                       {activity.activity_base.tags.map((tag, index) => (
@@ -230,22 +236,26 @@ function ViewActivity() {
                 decimalPlaces={1}
               />
               <Metric
-                name="Average Speed"
-                value={activity.activity_analysis.average_speed}
-                unit="km/h"
-                decimalPlaces={1}
-              />
-              <Metric
                 name="Elevation gain"
                 value={activity.activity_analysis.elevation_gain}
                 unit="m"
               />
-              <MetricBox
-                name="Elapsed time"
-                value={getElapsedTime(
-                  activity.activity_analysis.total_elapsed_time
-                )}
-              />
+              {!isRoute && (
+                <>
+                  <Metric
+                    name="Average Speed"
+                    value={activity.activity_analysis.average_speed}
+                    unit="km/h"
+                    decimalPlaces={1}
+                  />
+                  <MetricBox
+                    name="Elapsed time"
+                    value={getElapsedTime(
+                      activity.activity_analysis.total_elapsed_time
+                    )}
+                  />
+                </>
+              )}
             </div>
           </div>
           {activity?.has_gps_data && (
@@ -274,12 +284,12 @@ function ViewActivity() {
           {activity?.activity_analysis?.elev_summary && (
             <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
           )}
-          {activity?.activity_analysis?.power_summary && (
+          {activity?.activity_analysis?.power_summary && !isRoute && (
             <PowerCard
               powerSummary={activity.activity_analysis.power_summary}
             />
           )}
-          {activity?.laps && activity.laps.length > 1 && (
+          {activity?.laps && activity.laps.length > 1 && !isRoute && (
             <LapsTable laps={activity.laps} />
           )}
         </div>
