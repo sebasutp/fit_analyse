@@ -45,8 +45,8 @@ function NewActivity() {
         ) : 
         (
           <div>
-            <label>Upload Activity File (.fit, .gpx)</label>
-            <input type="file" accept=".fit,.gpx" onChange={(e) => uploadFitFile(e.target.files[0])} />
+            <label htmlFor="file-upload">Upload Activity File (.fit, .gpx)</label>
+            <input id="file-upload" type="file" accept=".fit,.gpx" onChange={(e) => uploadFitFile(e.target.files[0])} />
           </div>
         )
       }

@@ -367,7 +367,7 @@ async def update_activity(
     q = select(model.ActivityTable).where(model.ActivityTable.activity_id == activity_id)
     activity_db = session.exec(q).one()
     if activity_db.owner_id != current_user_id.id:
-        return HTTPException(status_code=401, detail="Not authorized: User doesn't own activity")
+        return Response(status_code=401)
     activity_db.sqlmodel_update(activity_update.model_dump(exclude_unset=True))
     session.add(activity_db)
     session.commit()
