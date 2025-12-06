@@ -25,16 +25,3 @@ def get_activity_df(activity: model.ActivityTable):
     activity_df = get_activity_raw_df(activity)
     activity_df.timestamp = activity_df.timestamp.apply(lambda x: x.timestamp() if x else None)
     return activity_df
-
-def fetch_activity_df(activity_id: str, session):
-    # This creates a circular dependency if we import fetch_activity from somewhere else that uses this.
-    # Ideally, the router fetches the activity and passes it to the service.
-    # For now, I'll duplicate the fetch logic or import it.
-    # Actually, fetch_activity was in model_helpers. I should probably move DB fetch logic to a CRUD service or keep it simple.
-    # Let's put a TODO or import it from a new crud location if needed.
-    # For now, I will NOT include fetch_activity_df here to avoid circular imports if I can help it.
-    # But wait, api.py uses fetch_activity_df.
-    # Let's see... `fetch_activity` uses `session`.
-    # I'll move `fetch_activity` to a `crud.py` or just `activities.py` router? No, reusable.
-    # I'll put `fetch_activity` in `backend/app/services/activity_crud.py` or similar.
-    pass

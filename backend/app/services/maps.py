@@ -7,12 +7,6 @@ import gpxpy.gpx
 from staticmap import StaticMap, Line
 from fastapi import HTTPException
 
-# Helper from analysis/data_processing needed?
-# subsample_timeseries is needed. It's a math helper.
-# I'll duplicate it or put it in a common `utils.py`.
-# For now, I'll allow duplication of simple helpers or put it here if only used here.
-# `subsample_timeseries` is used in `elev_summary` (analysis) and `get_activity_map` (maps).
-# I'll put it in `backend/app/services/utils.py`.
 
 from app.services import utils
 
