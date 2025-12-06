@@ -1,23 +1,22 @@
 import unittest
 import pandas as pd
 from app import model
-from app import model_helpers
+from app.services import data_processing, analysis, maps, activity_crud
 from unittest.mock import patch
 import io
-import pyarrow.feather as feather
 from datetime import datetime
 
-class TestModelHelpers(unittest.TestCase):
+class TestServices(unittest.TestCase):
 
     def test_remove_columns(self):
         df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4], 'col3': [5, 6]})
-        result_df = model_helpers.remove_columns(df, ['col2', 'col3'])
+        result_df = data_processing.remove_columns(df, ['col2', 'col3'])
         self.assertListEqual(list(result_df.columns), ['col1'])
 
     def test_serialize_deserialize_dataframe(self):
         df = pd.DataFrame({'col1': [1, 2], 'col2': [3.0, 4.0], 'col3': [True, False], 'left_right_balance': [1, 2]})
-        serialized = model_helpers.serialize_dataframe(df)
-        deserialized_df = model_helpers.deserialize_dataframe(serialized)
+        serialized = data_processing.serialize_dataframe(df)
+        deserialized_df = data_processing.deserialize_dataframe(serialized)
 
         self.assertIsInstance(serialized, bytes)
         self.assertIsInstance(deserialized_df, pd.DataFrame)
@@ -29,7 +28,7 @@ class TestModelHelpers(unittest.TestCase):
         df = pd.DataFrame({
             'altitude': [10, 12, 15, 14, 16, 13, 17, 18, 16]
         })
-        intervals = model_helpers.compute_elevation_gain_intervals(df, tolerance=0.5, min_elev=2.0)
+        intervals = analysis.compute_elevation_gain_intervals(df, tolerance=0.5, min_elev=2.0)
         self.assertEqual(len(intervals), 2)
         self.assertEqual(intervals[0].from_ix, 0)
         self.assertEqual(intervals[0].to_ix, 2)
@@ -42,14 +41,14 @@ class TestModelHelpers(unittest.TestCase):
         df = pd.DataFrame({
             'altitude': [10, 10, 10, 10, 10, 10, 10]
         })
-        intervals = model_helpers.compute_elevation_gain_intervals(df, tolerance=1.0, min_elev=2.0)
+        intervals = analysis.compute_elevation_gain_intervals(df, tolerance=1.0, min_elev=2.0)
         self.assertEqual(len(intervals), 0)
         
     def test_compute_elevation_gain(self):
         df = pd.DataFrame({
             'altitude': [10, 12, 15, 14, 16, 13, 17, 18, 16]
         })
-        total_gain = model_helpers.compute_elevation_gain(df, tolerance=0.5, min_elev=2.0)
+        total_gain = analysis.compute_elevation_gain(df, tolerance=0.5, min_elev=2.0)
         self.assertEqual(total_gain, 10.0)
 
 
@@ -61,7 +60,7 @@ class TestModelHelpers(unittest.TestCase):
             'position_lat': [1, 2, 3, 4, 5],
             'position_long': [6, 7, 8, 9, 10]
         })
-        model_helpers.get_activity_map(ride_df, num_samples=2)
+        maps.get_activity_map(ride_df, num_samples=2)
         MockStaticMap.assert_called_once()
 
     def test_compute_activity_summary(self):
@@ -78,7 +77,7 @@ class TestModelHelpers(unittest.TestCase):
             'altitude': [10, 12, 15, 14, 16, 13],
             'power': [100, 200, 300, 250, 150, 200]
         })
-        summary = model_helpers.compute_activity_summary(df)
+        summary = analysis.compute_activity_summary(df)
         self.assertAlmostEqual(summary.distance, 0.5)
         self.assertAlmostEqual(summary.total_elapsed_time, 5.0)
         self.assertAlmostEqual(summary.average_speed, (11.0 / 6.0) * 3.6)
@@ -107,7 +106,7 @@ class TestModelHelpers(unittest.TestCase):
             'speed': [1.0, 2.0, 3.0, 2.0, 1.0, 2.0],
             'altitude': [10, 12, 15, 14, 16, 13]
         })
-        summary = model_helpers.compute_activity_summary(df)
+        summary = analysis.compute_activity_summary(df)
         self.assertAlmostEqual(summary.distance, 0.5)
         self.assertAlmostEqual(summary.total_elapsed_time, 5.0)
         self.assertAlmostEqual(summary.average_speed, (11.0 / 6.0) * 3.6)
@@ -119,7 +118,7 @@ class TestModelHelpers(unittest.TestCase):
       sample_df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
 
       # Serialize the DataFrame to simulate storing it in the database
-      serialized_df = model_helpers.serialize_dataframe(sample_df)
+      serialized_df = data_processing.serialize_dataframe(sample_df)
 
       # Create a mock ActivityTable object
       mock_activity_table = model.ActivityTable(
@@ -135,7 +134,7 @@ class TestModelHelpers(unittest.TestCase):
       )
 
       # Call the function
-      result_df = model_helpers.get_activity_raw_df(mock_activity_table)
+      result_df = data_processing.get_activity_raw_df(mock_activity_table)
 
       # Assertions
       self.assertIsInstance(result_df, pd.DataFrame)
@@ -153,7 +152,7 @@ class TestModelHelpers(unittest.TestCase):
         })
 
       # Serialize the DataFrame to simulate storing it in the database
-      serialized_df = model_helpers.serialize_dataframe(sample_df)
+      serialized_df = data_processing.serialize_dataframe(sample_df)
 
       # Create a mock ActivityTable object
       mock_activity_table = model.ActivityTable(
@@ -167,18 +166,18 @@ class TestModelHelpers(unittest.TestCase):
           last_modified=datetime.now(),
           data=serialized_df,
       )
-      activity_response = model_helpers.get_activity_response(mock_activity_table)
+      activity_response = analysis.get_activity_response(mock_activity_table)
       self.assertIsNotNone(activity_response.activity_analysis)
       self.assertIsInstance(activity_response.activity_base, model.ActivityBase)
 
-    @patch('app.model_helpers.Session')
+    @patch('app.services.activity_crud.Session')
     def test_fetch_activity(self, MockSession):
         # Mocking the session behavior
         mock_session = MockSession.return_value
         mock_session.exec.return_value.first.return_value = "mock_activity"
 
         # Call the function
-        result = model_helpers.fetch_activity("some_id", mock_session)
+        result = activity_crud.fetch_activity("some_id", mock_session)
 
         # Assertions
         self.assertEqual(result, "mock_activity")
@@ -186,7 +185,7 @@ class TestModelHelpers(unittest.TestCase):
         # Test for HTTPException when no activity is found
         mock_session.exec.return_value.first.return_value = None
         with self.assertRaises(Exception) as context:
-            model_helpers.fetch_activity("some_id", mock_session)
+            activity_crud.fetch_activity("some_id", mock_session)
         self.assertEqual(context.exception.status_code, 404)
 
     def test_get_activity_df(self):
@@ -198,7 +197,7 @@ class TestModelHelpers(unittest.TestCase):
                           datetime(2023, 1, 1, 10, 0, 1)]
         })
       
-      serialized_df = model_helpers.serialize_dataframe(sample_df)
+      serialized_df = data_processing.serialize_dataframe(sample_df)
 
       mock_activity_table = model.ActivityTable(
           activity_id="test_id",
@@ -212,7 +211,7 @@ class TestModelHelpers(unittest.TestCase):
           data=serialized_df,
       )
 
-      df = model_helpers.get_activity_df(mock_activity_table)
+      df = data_processing.get_activity_df(mock_activity_table)
       self.assertListEqual(list(df.columns), ["col1", "col2", "timestamp"])
       self.assertAlmostEqual(df.timestamp[0], 1672567200.0)
 
@@ -225,7 +224,7 @@ class TestModelHelpers(unittest.TestCase):
             ]})
 
         # Simulate the activity table returned by fetch_activity
-        serialized_df = model_helpers.serialize_dataframe(sample_df)
+        serialized_df = data_processing.serialize_dataframe(sample_df)
         mock_activity_table = model.ActivityTable(
             activity_id="test_id",
             name="test_activity",
@@ -241,7 +240,7 @@ class TestModelHelpers(unittest.TestCase):
         mock_fetch_activity.return_value = mock_activity_table
 
         # Call the function
-        df = model_helpers.fetch_activity_df("some_id", "some_session")
+        df = activity_crud.fetch_activity_df("some_id", "some_session")
         self.assertListEqual(list(df.columns), ["col1", "col2", "timestamp"])
 
 if __name__ == '__main__':
