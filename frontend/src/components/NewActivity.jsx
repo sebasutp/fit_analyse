@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GetToken, ParseBackendResponse } from './Utils';
 import loadingImg from '../assets/loading.gif';
+import { db } from '../db';
 
 
 function NewActivity() {
@@ -28,6 +29,14 @@ function NewActivity() {
     })
     .then((response) => ParseBackendResponse(response, navigate))
     .then((data) => {
+      db.activities.add({
+        ...data
+      }).then(() => {
+        console.log("Activity added to IndexedDB");
+      }).catch((error) => {
+        console.error("Error adding activity to IndexedDB: ", error);
+      });
+
       console.log("Successfully added activity: ", data);
       setIsLoading(false);
       navigate(`/activity/${data.activity_id}`);
