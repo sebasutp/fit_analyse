@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FaDownload } from "react-icons/fa6";
 
 import PowerCard from './power/PowerCard'
+import PowerCurve from './power/PowerCurve';
 import { ElevCard } from './activity/ElevationCard';
 import { Metric, MetricBox } from './MetricComponents'
 import LapsTable from './activity/LapsTable'; // Adjust path if necessary
@@ -20,6 +21,7 @@ function ViewActivity() {
   const [currentActivityTags, setCurrentActivityTags] = useState(""); // Added for tags
   const [isLoading, setIsLoading] = useState(false);
   const [is_loading_main_activity, setIsLoadingMainActivity] = useState(true);
+  const [powerCurveData, setPowerCurveData] = useState([]);
   const [editMode, setEditMode] = useState(false);
 
   const token = GetToken();
@@ -39,6 +41,23 @@ function ViewActivity() {
       })
       .catch((error) => {
         console.error('Error fetching main activity details:', error);
+      });
+
+    const powerCurveUrl = `${import.meta.env.VITE_BACKEND_URL}/activity/${id}/power-curve`;
+    fetch(powerCurveUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then((response) => {
+        if (response.ok) return response.json();
+        return [];
+      })
+      .then((data) => {
+        setPowerCurveData(data);
+      })
+      .catch((error) => {
+        console.error('Error fetching power curve:', error);
       });
   }, [id]);
 
@@ -208,6 +227,9 @@ function ViewActivity() {
             <PowerCard
               powerSummary={activity.activity_analysis.power_summary}
             />
+          )}
+          {powerCurveData && powerCurveData.length > 0 && (
+            <PowerCurve powerCurveData={powerCurveData} />
           )}
           {activity?.laps && activity.laps.length > 1 && (
             <LapsTable laps={activity.laps} />
