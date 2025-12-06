@@ -185,6 +185,20 @@ async def get_activity_endpoint(
     activity_response = analysis.get_activity_response(activity, include_raw_data=False)
     return activity_response
 
+@router.get("/activity/{activity_id}/power-curve", response_model=list[dict[str, float]])
+async def get_activity_power_curve(
+    *,
+    session: Session = Depends(get_db_session),
+    activity_id: str):
+    
+    activity = activity_crud.fetch_activity(activity_id, session)
+    # fetch_activity raises 404 if not found
+    
+    activity_df = data_processing.get_activity_df(activity)
+    power_curve = analysis.calculate_power_curve(activity_df)
+    
+    return power_curve
+
 @router.get("/activity_map/{activity_id}")
 async def get_activity_map_endpoint(
     *,

@@ -1,0 +1,51 @@
+import unittest
+import pandas as pd
+from datetime import datetime
+from app.services import analysis
+
+class TestPowerCurve(unittest.TestCase):
+
+    def test_calculate_power_curve(self):
+        # Create a sample DataFrame with 10 seconds of data
+        timestamps = [datetime(2023, 1, 1, 10, 0, i) for i in range(10)]
+        # Power values: 100, 100, 100, 200, 200, 200, 100, 100, 100, 100
+        # 1s max: 200
+        # 2s max: 200
+        # 3s max: 200
+        # 5s max: (100+200+200+200+100)/5 = 160 or similar window
+        power_values = [100, 100, 100, 200, 200, 200, 100, 100, 100, 100]
+        
+        df = pd.DataFrame({
+            'timestamp': timestamps,
+            'power': power_values
+        })
+        
+        # Determine expected durations based on the implementation plan or standard logical steps
+        # The plan mentioned: [1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200]
+        # Since our data is only 10s long, we expect values for 1, 2, 5, 10.
+        # Durations larger than total time might be omitted or return None/0.
+        
+        curve = analysis.calculate_power_curve(df)
+        
+        # Convert list of dicts to a dict for easier assertion {duration: power}
+        curve_dict = {item['duration']: item['max_watts'] for item in curve}
+        
+        self.assertAlmostEqual(curve_dict[1], 200.0)
+        self.assertAlmostEqual(curve_dict[2], 200.0)
+        # Best 5s window: 100, 200, 200, 200, 100 -> sum=800 -> avg=160
+        self.assertAlmostEqual(curve_dict[5], 160.0)
+        # Best 10s window: sum(all)/10 = 1300/10 = 130
+        self.assertAlmostEqual(curve_dict[10], 130.0)
+
+    def test_calculate_power_curve_empty(self):
+        df = pd.DataFrame({'timestamp': [], 'power': []})
+        curve = analysis.calculate_power_curve(df)
+        self.assertEqual(curve, [])
+
+    def test_calculate_power_curve_missing_columns(self):
+        df = pd.DataFrame({'other': [1, 2, 3]})
+        curve = analysis.calculate_power_curve(df)
+        self.assertEqual(curve, [])
+
+if __name__ == '__main__':
+    unittest.main()

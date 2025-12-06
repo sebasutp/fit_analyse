@@ -5,6 +5,64 @@ from typing import Sequence
 from app import model
 from app.services import utils, data_processing, maps
 
+def calculate_power_curve(ride_df: pd.DataFrame) -> list[dict[str, int | float]]:
+    if ride_df is None or ride_df.empty or 'power' not in ride_df.columns:
+        return []
+
+    # Ensure timestamp is datetime and sort
+    df = ride_df.copy()
+    if 'timestamp' not in df.columns:
+        # If no timestamp, we can't reliably calculate time-based power curve
+        # Fallback: assume 1s intervals if no timestamp? Or return empty?
+        # Given the requirements, let's return empty if no timestamp.
+        return []
+    
+    if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+        # Auto-detect if it's float/int (likely seconds) or string
+        if pd.api.types.is_numeric_dtype(df['timestamp']):
+             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+        else:
+             df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    df = df.sort_values('timestamp')
+    
+    # Set timestamp as index and resample to 1s to handle gaps/irregularities
+    # We use 'max' for resampling in case of sub-second entries (unlikely for FIT)
+    # or just 'mean'
+    df = df.set_index('timestamp')
+    
+    # Resample to 1s. 
+    # Important: If there are large gaps (e.g. paused), filling with 0 is essentially what "Elapsed Time" power curve does.
+    # "Timer Time" power curve would concatenate moving segments. 
+    # Standard practice is often "Elapsed Time" for critical power curve to capture fatigue, 
+    # but some tools use "Timer Time". 
+    # Given we track 'total_elapsed_time' vs 'active_time', let's stick to a continuous time grid (Elapsed).
+    # Fill missing power with 0.
+    df_resampled = df[['power']].resample('1s').mean().fillna(0)
+    
+    power_series = df_resampled['power']
+    total_duration = len(power_series)
+    
+    durations = [1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 10800, 14400, 18000]
+    
+    curve = []
+    
+    for duration in durations:
+        if duration > total_duration:
+            break
+            
+        # Calculate rolling max mean
+        # Since we are on a 1s grid, window=duration
+        max_power = power_series.rolling(window=duration).mean().max()
+        
+        if pd.notna(max_power):
+            curve.append({
+                "duration": duration,
+                "max_watts": float(max_power)
+            })
+            
+    return curve
+
 def compute_elevation_gain_intervals(df: pd.DataFrame, tolerance=1.0, min_elev=1.0):
     altitude_series = df.altitude.dropna()
     altitude = altitude_series.to_list()

@@ -75,7 +75,11 @@ def create_activity_in_db(dbsession: Session, user_id: int, name: str, tags: lis
         date = datetime.utcnow()
     
     # Create a simple, valid DataFrame to be serialized
-    df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
+    df = pd.DataFrame({
+        'col1': [1, 2], 
+        'col2': [3, 4],
+        'timestamp': [datetime.utcnow(), datetime.utcnow() + timedelta(seconds=1)]
+    })
     serialized_data = data_processing.serialize_dataframe(df)
 
     activity = ActivityTable(
@@ -239,6 +243,18 @@ def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbses
     assert response.status_code == 401
     # Check that the response body is empty for an unauthorized request
     assert not response.content
+
+def test_get_activity_power_curve(auth_headers: dict, test_user: User, dbsession: Session):
+    activity = create_activity_in_db(dbsession, test_user.id, "Power Curve Activity")
+    
+    response = client.get(f"/activity/{activity.activity_id}/power-curve", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    # Since we used dummy serialized data, it might return empty list or some defaults, 
+    # but the endpoint should be reachable.
+    # The dummy data in create_activity_in_db has no power column, so it should be empty list.
+    assert data == []
 
 # Search-related tests have been removed.
 
