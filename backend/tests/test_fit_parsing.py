@@ -3,10 +3,14 @@ import os
 import pandas as pd
 from app.fit_parsing import fitparse_extract_data, go_extract_data, extract_data_to_dataframe
 
+from pathlib import Path
+
 # Fixture for the path to the sample FIT file
 @pytest.fixture
 def sample_fit_file():
-    return "examples/2024-11-12-065535-ELEMNT ROAM 8055-155-0.fit"
+    # Calculate path relative to this test file
+    # backend/tests/test_fit_parsing.py -> backend/tests/ -> backend/ -> root -> examples
+    return Path(__file__).resolve().parent.parent.parent / "examples" / "2024-11-12-065535-ELEMNT ROAM 8055-155-0.fit"
 
 # Fixture for the content of the sample FIT file
 @pytest.fixture

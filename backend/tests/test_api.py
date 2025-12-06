@@ -122,8 +122,11 @@ def test_user_login_incorrect_password(test_user: User):
     assert response.status_code == 400
     assert response.json() == {"detail": "Incorrect username or password"}
 
+from pathlib import Path
+
 def test_upload_activity_fit(auth_headers: dict, test_user: User, dbsession: Session):
-    with open("examples/2024-11-12-065535-ELEMNT ROAM 8055-155-0.fit", "rb") as f:
+    fit_file_path = Path(__file__).resolve().parent.parent.parent / "examples" / "2024-11-12-065535-ELEMNT ROAM 8055-155-0.fit"
+    with open(fit_file_path, "rb") as f:
         response = client.post("/upload_activity", headers=auth_headers, files={"file": ("test.fit", f, "application/octet-stream")})
     
     assert response.status_code == 200
