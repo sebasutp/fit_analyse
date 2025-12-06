@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import { FaPencil, FaDownload, FaTrash } from "react-icons/fa6";
+import { FaDownload } from "react-icons/fa6";
 
 import PowerCard from './power/PowerCard'
 import { ElevCard } from './activity/ElevationCard';
-import {Metric, MetricBox} from './MetricComponents'
+import { Metric, MetricBox } from './MetricComponents'
 import LapsTable from './activity/LapsTable'; // Adjust path if necessary
-import {getElapsedTime, GetToken} from './Utils';
+import ActivityHeader from './activity/ActivityHeader';
+import ActivityEditForm from './activity/ActivityEditForm';
+import { getElapsedTime, GetToken } from './Utils';
 import loadingImg from '../assets/loading.gif';
 
 function ViewActivity() {
@@ -76,10 +78,10 @@ function ViewActivity() {
     setEditMode(false);
   }
 
-  const onClickSave = () => {
+  const onClickSave = (newName, newDate, newTagsStr) => {
     setIsLoading(true);
     const url = `${import.meta.env.VITE_BACKEND_URL}/activity/${id}`;
-    const tagsArray = currentActivityTags.split(',').map(tag => tag.trim()).filter(tag => tag !== "");
+    const tagsArray = newTagsStr.split(',').map(tag => tag.trim()).filter(tag => tag !== "");
 
     fetch(url, {
       method: "PATCH",
@@ -88,30 +90,30 @@ function ViewActivity() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        name: currentActivityName,
-        date: currentActivityDate,
+        name: newName,
+        date: newDate,
         tags: tagsArray // Add tags to request
       })
     })
       .then((response) => response.json())
       .then((data) => {
         // Assuming backend returns the full updated activity_base or at least name, date, tags
-        const newName = data.name || (data.activity_base && data.activity_base.name) || "";
-        const newDate = data.date || (data.activity_base && data.activity_base.date) || "";
-        const newTags = data.tags || (data.activity_base && data.activity_base.tags) || [];
+        const updatedName = data.name || (data.activity_base && data.activity_base.name) || "";
+        const updatedDate = data.date || (data.activity_base && data.activity_base.date) || "";
+        const updatedTags = data.tags || (data.activity_base && data.activity_base.tags) || [];
 
-        setCurrentActivityName(newName);
-        setCurrentActivityDate(newDate);
-        setCurrentActivityTags(newTags.join(", "));
+        setCurrentActivityName(updatedName);
+        setCurrentActivityDate(updatedDate);
+        setCurrentActivityTags(updatedTags.join(", "));
 
         // Update the main activity state to reflect changes immediately
         setActivity(prevActivity => ({
           ...prevActivity,
           activity_base: {
             ...prevActivity.activity_base,
-            name: newName,
-            date: newDate,
-            tags: newTags
+            name: updatedName,
+            date: updatedDate,
+            tags: updatedTags
           }
         }));
       })
@@ -132,94 +134,23 @@ function ViewActivity() {
           <div className="row-container">
             <div className="activity-container">
               {editMode ? (
-                <div className="grid gap-6 mb-6 md:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="name"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                      value={currentActivityName}
-                      onChange={(e) => {
-                        setCurrentActivityName(e.target.value);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="date"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      id="date"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                      value={currentActivityDate.slice(0, 16)}
-                      onChange={(e) => {
-                        setCurrentActivityDate(e.target.value);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="tags"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Tags (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      id="tags"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                      placeholder="e.g. running, outdoor, fast"
-                      value={currentActivityTags}
-                      onChange={(e) => setCurrentActivityTags(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    className="py-2.5 px-5 me-2 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:outline-none focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 items-center"
-                    onClick={onClickCancel}
-                    disabled={isLoading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                    onClick={onClickSave}
-                    disabled={isLoading}
-                  >
-                    Save
-                  </button>
-                </div>
+                <ActivityEditForm
+                  initialName={currentActivityName}
+                  initialDate={currentActivityDate}
+                  initialTags={currentActivityTags}
+                  onSave={onClickSave}
+                  onCancel={onClickCancel}
+                  isLoading={isLoading}
+                />
               ) : (
-                <>
-                  <div className="flex items-center space-x-4">
-                    <button className="edit-button" onClick={onClickEdit}>
-                      <FaPencil />
-                    </button>
-                    <button className="delete-button" onClick={onClickDelete} disabled={isLoading}>
-                      <FaTrash />
-                    </button>
-                  </div>
-                  <h1 className="activity-title">{currentActivityName}</h1>
-                  <p className="activity-date">{currentActivityDate}</p>
-                  {activity.activity_base && activity.activity_base.tags && activity.activity_base.tags.length > 0 && (
-                    <div style={{ marginTop: '10px', marginBottom: '15px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
-                      {activity.activity_base.tags.map((tag, index) => (
-                        <span key={index} style={{ backgroundColor: '#f0f0f0', padding: '5px 10px', borderRadius: '15px', fontSize: '0.9em' }}>
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </>
+                <ActivityHeader
+                  name={currentActivityName}
+                  date={currentActivityDate}
+                  tags={activity.activity_base && activity.activity_base.tags ? activity.activity_base.tags : []}
+                  onEdit={onClickEdit}
+                  onDelete={onClickDelete}
+                  isLoading={isLoading}
+                />
               )}
             </div>
             <div className="two-col-container">
@@ -252,9 +183,8 @@ function ViewActivity() {
             <div>
               <a href={`../map/${activity.activity_base.activity_id}`}>
                 <img
-                  src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${
-                    activity.activity_base.activity_id
-                  }`}
+                  src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_base.activity_id
+                    }`}
                   alt="Activity Map"
                 />
               </a>

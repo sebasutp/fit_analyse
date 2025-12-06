@@ -12,7 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from app.api import app_obj as app
 from app.model import ActivityTable, User # Assuming model.py contains these
 from app.auth.auth_handler import create_access_token # For generating test tokens
-from app import model_helpers # For get_db_session
+from app.database import get_db_session
+from app.services import data_processing
 from app import model as app_models # For model.UserId
 from app.auth import crypto # For generating activity_id
 from datetime import datetime, timedelta
@@ -24,13 +25,13 @@ DATABASE_URL = "sqlite:///:memory:"
 engine = create_engine(DATABASE_URL, poolclass=StaticPool, connect_args={"check_same_thread": False})
 
 # Store original dependency and override it
-original_get_db_session = app.dependency_overrides.get(model_helpers.get_db_session)
+original_get_db_session = app.dependency_overrides.get(get_db_session)
 
 def override_get_db_session():
     with Session(engine) as session:
         yield session
 
-app.dependency_overrides[model_helpers.get_db_session] = override_get_db_session
+app.dependency_overrides[get_db_session] = override_get_db_session
 
 client = TestClient(app)
 
@@ -75,7 +76,7 @@ def create_activity_in_db(dbsession: Session, user_id: int, name: str, tags: lis
     
     # Create a simple, valid DataFrame to be serialized
     df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
-    serialized_data = model_helpers.serialize_dataframe(df)
+    serialized_data = data_processing.serialize_dataframe(df)
 
     activity = ActivityTable(
         activity_id=crypto.generate_random_base64_string(16), # Use crypto for unique ID
@@ -246,6 +247,6 @@ def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbses
 # Pytest fixtures usually handle cleanup well for test isolation.
 def teardown_module(module):
     if original_get_db_session:
-        app.dependency_overrides[model_helpers.get_db_session] = original_get_db_session
+        app.dependency_overrides[get_db_session] = original_get_db_session
     else:
-        del app.dependency_overrides[model_helpers.get_db_session]
+        del app.dependency_overrides[get_db_session]
