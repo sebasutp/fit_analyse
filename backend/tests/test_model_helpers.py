@@ -53,7 +53,7 @@ class TestModelHelpers(unittest.TestCase):
         self.assertEqual(total_gain, 10.0)
 
 
-    @patch('app.model_helpers.StaticMap')
+    @patch('app.services.maps.StaticMap')
     @patch('os.getenv')
     def test_get_activity_map(self, mock_getenv, MockStaticMap):
         mock_getenv.return_value = "400"
@@ -216,7 +216,7 @@ class TestModelHelpers(unittest.TestCase):
       self.assertListEqual(list(df.columns), ["col1", "col2", "timestamp"])
       self.assertAlmostEqual(df.timestamp[0], 1672567200.0)
 
-    @patch('app.model_helpers.fetch_activity')
+    @patch('app.services.activity_crud.fetch_activity')
     def test_fetch_activity_df(self, mock_fetch_activity):
         # Create a sample DataFrame
         sample_df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4],
