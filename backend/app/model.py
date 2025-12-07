@@ -24,8 +24,22 @@ class Token(BaseModel):
 class UserCreate(UserLogin):
     fullname: Optional[str] = Field(...)
 
+class UserUpdate(BaseModel):
+    fullname: Optional[str] = None
+    ftp: Optional[int] = None
+    power_zones: Optional[List[int]] = None
+
 class User(UserCreate, table=True):
     id: int = Field(default=None, primary_key=True)
+    ftp: Optional[int] = Field(default=None)
+    power_zones: Optional[List[int]] = Field(default=None, sa_column=Column(JSON))
+
+class UserProfile(BaseModel):
+    id: int
+    email: EmailStr
+    fullname: Optional[str] = None
+    ftp: Optional[int] = None
+    power_zones: Optional[List[int]] = None
 
 
 # class Gear(SQLModel, table=True):
@@ -83,6 +97,7 @@ class ActivitySummary(BaseModel):
     average_speed: Optional[float] = None
     power_summary: Optional[PowerSummary] = None
     elev_summary: Optional[ElevationSummary] = None
+    time_in_zones: Optional[List[float]] = None
 
 class ActivityBase(SQLModel):
     activity_id: str = Field(...)

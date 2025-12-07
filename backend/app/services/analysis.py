@@ -1,7 +1,7 @@
 import re
 import pandas as pd
 import numpy as np
-from typing import Sequence
+from typing import Sequence, Optional
 from app import model
 from app.services import utils, data_processing, maps
 
@@ -62,6 +62,49 @@ def calculate_power_curve(ride_df: pd.DataFrame) -> list[dict[str, int | float]]
             })
             
     return curve
+
+def calculate_time_in_zones(ride_df: pd.DataFrame, zones: Sequence[int]) -> list[float]:
+    """
+    Calculates the time spent in each power zone.
+    zones: a list of upper bounds for the zones.
+           e.g. [150, 200, 250, 300, 350, 400] means:
+           Zone 1: 0-150
+           Zone 2: 151-200
+           ...
+           Zone 7: > 400
+    Returns a list of seconds spent in each zone.
+    """
+    if ride_df is None or ride_df.empty or 'power' not in ride_df.columns or not zones:
+        return []
+
+    # Use a copy to avoid side effects if we modify
+    # However we only read columns, so minimal risk.
+    
+    # Prepare power series
+    power_series = pd.to_numeric(ride_df['power'], errors='coerce').fillna(0)
+
+    # Prepare duration weights
+    # Currently assuming 1Hz data (1 second per row)
+    # If we wanted to be more precise with timestamps:
+    # if 'timestamp' in ride_df.columns and pd.api.types.is_datetime64_any_dtype(ride_df['timestamp']):
+    #     durations = ride_df['timestamp'].diff().shift(-1).dt.total_seconds().fillna(1.0).values
+    # else:
+    #     durations = np.ones(len(power_series))
+    durations = np.ones(len(power_series))
+
+    # Create bins: [0, z1, z2, ..., zN, infinity]
+    bins = [0] + sorted(list(zones)) + [float('inf')]
+
+    # Bin the power data
+    # include_lowest=True ensures 0 is included in the first bin
+    # right=True ensures bins are (a, b], so a limit of 150 includes 150 in the lower zone.
+    cuts = pd.cut(power_series, bins=bins, include_lowest=True, right=True)
+
+    # Group durations by the cuts and sum them
+    # observed=False ensures we get 0 for empty bins
+    zone_sums = pd.Series(durations).groupby(cuts.values, observed=False).sum()
+
+    return zone_sums.tolist()
 
 def compute_elevation_gain_intervals(df: pd.DataFrame, tolerance=1.0, min_elev=1.0):
     altitude_series = df.altitude.dropna()
@@ -164,7 +207,7 @@ def compute_lap_metrics(lap_data_row: pd.Series, activity_df: pd.DataFrame) -> m
     )
     return lap_metrics_obj
 
-def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200):
+def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200, user_zones: Optional[list[int]] = None):
     total_time_seconds = len(ride_df)
 
     elevation_gain = compute_elevation_gain(ride_df, tolerance=2, min_elev=4.0) if 'altitude' in ride_df.columns and not ride_df['altitude'].dropna().empty else 0.0
@@ -191,13 +234,17 @@ def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200):
 
     summary.power_summary = compute_power_summary(ride_df)
 
+    if user_zones:
+        summary.time_in_zones = calculate_time_in_zones(ride_df, user_zones)
+
     if 'altitude' in ride_df.columns and not ride_df['altitude'].dropna().empty:
         summary.elev_summary = elev_summary(ride_df, num_samples)
     return summary
 
 def get_activity_response(
         activity_db: model.ActivityTable,
-        include_raw_data: bool = False):
+        include_raw_data: bool = False,
+        user_zones: Optional[list[int]] = None):
 
     activity_df = None
     if activity_db.data:
@@ -207,7 +254,7 @@ def get_activity_response(
             activity_df['timestamp'] = pd.to_datetime(activity_df['timestamp'])
 
     if activity_df is not None and not activity_df.empty:
-        activity_analysis_summary = compute_activity_summary(activity_df)
+        activity_analysis_summary = compute_activity_summary(activity_df, user_zones=user_zones)
         has_gps = maps.has_gps_data(activity_df)
     else:
         activity_analysis_summary = model.ActivitySummary(total_elapsed_time=0, active_time=0)

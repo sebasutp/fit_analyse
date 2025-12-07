@@ -72,7 +72,7 @@ function Activities() {
       setHasMore(true);
       loadActivities(true); // loadActivities will use selectedTab and searchQuery from state
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, token, selectedTab, searchQuery]); // loadActivities is not in this dep array.
 
   // Effect for infinite scrolling
@@ -91,12 +91,14 @@ function Activities() {
     window.addEventListener('scroll', handleScroll);
     // Cleanup function to remove the event listener when the component unmounts
     return () => window.removeEventListener('scroll', handleScroll);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, hasMore, loadActivities]); // loadActivities is a dependency here.
 
   return (
     <div>
-      <NewActivity />
+      <div className="flex justify-between items-center px-4 py-2">
+        <NewActivity />
+      </div>
       {/* Search Input */}
       <div style={{ margin: '20px 0', textAlign: 'center' }}>
         <input
@@ -145,13 +147,13 @@ function Activities() {
           )}
         </div>
       ) : (
-        isLoading && <img src={loadingImg} alt="Loading..." /> 
+        isLoading && <img src={loadingImg} alt="Loading..." />
       )}
-       {!isLoading && activities.length === 0 && !hasMore && (
-         <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
-            No activities found for this type.
-          </div>
-       )}
+      {!isLoading && activities.length === 0 && !hasMore && (
+        <div style={{ textAlign: 'center', margin: '20px', color: 'gray' }}>
+          No activities found for this type.
+        </div>
+      )}
     </div>
   );
 }

@@ -182,7 +182,10 @@ async def get_activity_endpoint(
     if _trigger_activity_recomputation_if_needed(activity, session):
         logging.info(f"Activity {activity_id} data was recomputed based on trigger.")
 
-    activity_response = analysis.get_activity_response(activity, include_raw_data=False)
+    owner = session.get(model.User, activity.owner_id)
+    user_zones = owner.power_zones if owner else None
+
+    activity_response = analysis.get_activity_response(activity, include_raw_data=False, user_zones=user_zones)
     return activity_response
 
 @router.get("/activity/{activity_id}/power-curve", response_model=list[dict[str, float]])
