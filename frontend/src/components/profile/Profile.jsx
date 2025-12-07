@@ -8,7 +8,8 @@ function Profile() {
     const [fullname, setFullname] = useState('');
     const [ftp, setFtp] = useState('');
     const [zones, setZones] = useState(Array(6).fill(''));
-    const [powerCurve, setPowerCurve] = useState([]);
+    const [powerCurve, setPowerCurve] = useState({});
+    const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -32,7 +33,14 @@ function Profile() {
                     if (data.power_zones && data.power_zones.length === 6) {
                         setZones(data.power_zones);
                     }
-                    setPowerCurve(data.power_curve || []);
+                    if (data.power_zones && data.power_zones.length === 6) {
+                        setZones(data.power_zones);
+                    }
+                    let pc = data.power_curve || {};
+                    if (Array.isArray(pc)) {
+                        pc = { 'all': pc };
+                    }
+                    setPowerCurve(pc);
                 }
                 setLoading(false);
             })
@@ -186,7 +194,24 @@ function Profile() {
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
-                    <PowerCurve powerCurveData={powerCurve} />
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Power Curve</h3>
+                        <div className="flex space-x-2">
+                            {['all', '3m', '6m', '12m'].map(period => (
+                                <button
+                                    key={period}
+                                    onClick={() => setSelectedPeriod(period)}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${selectedPeriod === period
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                                        }`}
+                                >
+                                    {period === 'all' ? 'All Time' : period}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <PowerCurve powerCurveData={powerCurve[selectedPeriod] || []} />
                 </div>
             </div>
         </div>

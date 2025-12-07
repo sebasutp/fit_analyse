@@ -53,6 +53,35 @@ openssl rand -hex 32
 Feel free to change any of the configuration variables in `.env` to
 match your needs.
 
+## Cron Jobs (Power Curves)
+
+The application includes a background scheduler to periodically recompute user power curves (all-time, 3m, 6m, 12m) to ensure accuracy.
+
+### Configuration
+
+Add the following to your `.env` file:
+
+```sh
+# Periods in months (default: 3, 6, 12)
+POWER_CURVE_PERIODS="3,6,12"
+
+# Frequency in hours to run the full recomputation (default: 24)
+POWER_CURVE_CRON_FREQUENCY_HOURS=24
+```
+
+### Disabling the Cron Job
+
+To disable the background cron job, you can set the frequency to a very high number or simply not rely on it (it runs in the background). Currently, the scheduler starts automatically. 
+To strictly prevent it from running logic, you can set `POWER_CURVE_CRON_FREQUENCY_HOURS` to a very large value or implement a flag (not currently enforced to strictly disable start, but you can control frequency).
+
+### Running Immediately on Startup
+
+To force a full recomputation of power curves immediately when the backend starts, run:
+
+```sh
+(venv)$ python main.py --run_batch_startup=power_curves
+```
+
 ## Front-end
 
 Make sure to change the .env file to point to the right

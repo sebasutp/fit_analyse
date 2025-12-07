@@ -19,7 +19,7 @@ const PowerCurve = ({ powerCurveData }) => {
         return (
             <div className="card-container">
                 <h2 className="card-title">Power Curve</h2>
-                <p className="text-gray-500 text-center py-4">No power data available for this activity.</p>
+                <p className="text-gray-500 text-center py-4">No power data found for this period.</p>
             </div>
         );
     }

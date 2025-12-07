@@ -167,7 +167,7 @@ async def upload_activity(
     user = session.get(model.User, current_user_id.id)
     if user and ride_df is not None and not ride_df.empty:
         new_curve = analysis.calculate_power_curve(ride_df)
-        user.power_curve = analysis.merge_power_curves(user.power_curve, new_curve)
+        user.power_curve = analysis.update_user_curves_incremental(user.power_curve, new_curve, activity_db.date)
         session.add(user)
 
     session.commit()
