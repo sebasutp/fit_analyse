@@ -54,13 +54,13 @@ class HistoricalStats(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id")
     period_type: str = Field(index=True) # ALL, YEAR, MONTH, WEEK
     period_id: str = Field(index=True) # "total", "2025", "2025-01", "2025-W10"
-    distance: float = Field(default=0.0)
-    moving_time: float = Field(default=0.0)
-    elapsed_time: float = Field(default=0.0)
-    elevation_gain: float = Field(default=0.0)
-    activity_count: int = Field(default=0)
+    distance: Optional[float] = Field(default=None)
+    moving_time: Optional[float] = Field(default=None)
+    elapsed_time: Optional[float] = Field(default=None)
+    elevation_gain: Optional[float] = Field(default=None)
+    activity_count: Optional[int] = Field(default=None)
     max_power: Optional[int] = Field(default=None)
-    total_work: int = Field(default=0)
+    total_work: Optional[int] = Field(default=None)
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
     __table_args__ = (
