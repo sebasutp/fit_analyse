@@ -89,7 +89,14 @@ def update_stats_incremental(session: Session, user_id: int, activity: ActivityT
             stat = HistoricalStats(
                 user_id=user_id,
                 period_type=p_type,
-                period_id=p_id
+                period_id=p_id,
+                distance=0.0,
+                moving_time=0.0,
+                elapsed_time=0.0,
+                elevation_gain=0.0,
+                activity_count=0,
+                total_work=0,
+                max_power=0
             )
             session.add(stat)
             
