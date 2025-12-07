@@ -12,7 +12,7 @@ from sqlmodel import Session, select
 from app import model, fit_parsing, gpx_parsing
 from app.auth import auth_handler, crypto
 from app.database import get_db_session
-from app.services import analysis, maps, data_processing, activity_crud
+from app.services import analysis, maps, data_processing, activity_crud, stats
 from dateutil import parser as date_parser
 
 logger = logging.getLogger('uvicorn.error')
@@ -140,6 +140,26 @@ async def upload_activity(
         else:
             activity_date = activity_date.tz_convert('UTC')
     
+    
+    # Calculate additional stats
+    max_power = None
+    average_power = None
+    total_work = None
+    
+    if ride_df is not None and not ride_df.empty:
+        if 'power' in ride_df.columns:
+            try:
+                max_power = int(ride_df['power'].max())
+            except:
+                pass
+            
+            if summary.power_summary:
+                average_power = int(summary.power_summary.average_power)
+                # Estimate calories: roughly 1kJ work ~= 1kcal (assuming ~24% efficiency)
+                # total_work is in kJ
+                if summary.power_summary.total_work:
+                    total_work = int(summary.power_summary.total_work)
+
     activity_db = model.ActivityTable(
         activity_id=crypto.generate_random_base64_string(16),
         name=default_name,
@@ -151,7 +171,10 @@ async def upload_activity(
         date=activity_date,
         last_modified=datetime.now(datetime.now().astimezone().tzinfo),
         data=data_processing.serialize_dataframe(ride_df),
-        tags=None
+        tags=None,
+        max_power=max_power,
+        average_power=average_power,
+        total_work=total_work
     )
 
     if filename.endswith('.fit'):
@@ -169,6 +192,10 @@ async def upload_activity(
         new_curve = analysis.calculate_power_curve(ride_df)
         user.power_curve = analysis.update_user_curves_incremental(user.power_curve, new_curve, activity_db.date)
         session.add(user)
+        
+    # Update Historical Stats
+    stats.update_stats_incremental(session, current_user_id.id, activity_db, operation="add")
+
 
     session.commit()
     session.refresh(activity_db)

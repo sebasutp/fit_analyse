@@ -4,7 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlmodel import Session, select
 from app import model
 from app.database import engine
-from app.services import analysis, data_processing
+from app.services import analysis, data_processing, stats
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +45,26 @@ def recompute_user_curves(session: Session, user: model.User):
             logger.warning(f"Failed to process activity {activity.activity_id} for power curve: {e}")
             
     user.power_curve = user_curves
+    user.power_curve = user_curves
     session.add(user)
+
+def recompute_all_users_stats():
+    logger.info("Starting full recomputation of user historical stats.")
+    with Session(engine) as session:
+        users = session.exec(select(model.User)).all()
+        for user in users:
+            try:
+                logger.info(f"Recomputing stats for user {user.id}")
+                stats.rebuild_user_stats(session, user.id)
+            except Exception as e:
+                logger.error(f"Error recomputing stats for user {user.id}: {e}")
+    logger.info("Finished full recomputation of user historical stats.")
 
 def start_scheduler():
     cron_frequency_hours = int(os.getenv("POWER_CURVE_CRON_FREQUENCY_HOURS", "24"))
     scheduler = BackgroundScheduler()
     scheduler.add_job(recompute_all_users_curves, 'interval', hours=cron_frequency_hours)
+    scheduler.add_job(recompute_all_users_stats, 'interval', hours=cron_frequency_hours)
     scheduler.start()
     logger.info(f"Scheduler started with frequency {cron_frequency_hours} hours.")
     

@@ -1,73 +1,18 @@
-# backend/tests/test_api.py
+# Backend/tests/test_api.py
 from fastapi.testclient import TestClient
-from sqlmodel import Session, create_engine, SQLModel, select, func
-from sqlmodel.pool import StaticPool
+from sqlmodel import select, Session
 import pytest
-from sqlalchemy.exc import IntegrityError
-
-
-# Adjust import according to your project structure
-# Assuming your FastAPI app is in app.main or app.api if main is just a wrapper
-# Based on previous files, the FastAPI app_obj is in app.api
-from app.api import app_obj as app
-from app.model import ActivityTable, User # Assuming model.py contains these
-from app.auth.auth_handler import create_access_token # For generating test tokens
-from app.database import get_db_session
+from app.model import ActivityTable, User
+from app.auth.auth_handler import create_access_token
 from app.services import data_processing
-from app import model as app_models # For model.UserId
-from app.auth import crypto # For generating activity_id
+from app.auth import crypto
 from datetime import datetime, timedelta
 import io
 import pandas as pd
+from pathlib import Path
 
-# Setup for an in-memory SQLite database for testing
-DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(DATABASE_URL, poolclass=StaticPool, connect_args={"check_same_thread": False})
+# Fixtures are now in conftest.py
 
-# Store original dependency and override it
-original_get_db_session = app.dependency_overrides.get(get_db_session)
-
-def override_get_db_session():
-    with Session(engine) as session:
-        yield session
-
-app.dependency_overrides[get_db_session] = override_get_db_session
-
-client = TestClient(app)
-
-@pytest.fixture(scope="function", autouse=True)
-def setup_database():
-    SQLModel.metadata.create_all(engine)
-    yield
-    SQLModel.metadata.drop_all(engine)
-
-@pytest.fixture(scope="function")
-def dbsession(): # Renamed from session to dbsession to avoid conflict with pytest's session
-    with Session(engine) as session_instance:
-        yield session_instance
-
-@pytest.fixture(scope="function")
-def test_user(dbsession: Session):
-    user_data = {"email": "test@example.com", "password": "password123", "fullname": "Test User"}
-    # Assuming UserCreate is used for creation and User for table representation
-    user = User.model_validate(user_data) # Use model_validate if User is a SQLModel table class
-    user.password = crypto.get_password_hash(user.password) # Hash password
-
-    dbsession.add(user)
-    try:
-        dbsession.commit()
-        dbsession.refresh(user)
-    except IntegrityError: # Handle case where user might already exist from another fixture instance if not careful with scopes
-        dbsession.rollback()
-        user = dbsession.exec(select(User).where(User.email == user_data["email"])).one()
-
-    return user
-
-@pytest.fixture(scope="function")
-def auth_headers(test_user: User):
-    # create_access_token expects a User object as defined in auth_handler
-    token = create_access_token(test_user, timedelta(minutes=30))
-    return {"Authorization": f"Bearer {token}"}
 
 # Test data helper
 def create_activity_in_db(dbsession: Session, user_id: int, name: str, tags: list[str] = None, activity_type: str = "recorded", date: datetime = None):
@@ -103,7 +48,7 @@ def create_activity_in_db(dbsession: Session, user_id: int, name: str, tags: lis
     return activity
 
 # Test Cases
-def test_user_signup(dbsession: Session):
+def test_user_signup(dbsession, client): # Added client fixture arg
     response = client.post("/user/signup", json={"email": "newuser@example.com", "password": "newpassword", "fullname": "New User"})
     assert response.status_code == 200
     data = response.json()
@@ -115,21 +60,21 @@ def test_user_signup(dbsession: Session):
     assert user is not None
     assert user.fullname == "New User"
 
-def test_user_login(test_user: User):
+def test_user_login(test_user: User, client):
     response = client.post("/token", data={"username": "test@example.com", "password": "password123"})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
 
-def test_user_login_incorrect_password(test_user: User):
+def test_user_login_incorrect_password(test_user: User, client):
     response = client.post("/token", data={"username": "test@example.com", "password": "wrongpassword"})
     assert response.status_code == 400
     assert response.json() == {"detail": "Incorrect username or password"}
 
-from pathlib import Path
 
-def test_upload_activity_fit(auth_headers: dict, test_user: User, dbsession: Session):
+
+def test_upload_activity_fit(auth_headers: dict, test_user: User, dbsession, client):
     fit_file_path = Path(__file__).resolve().parent.parent.parent / "examples" / "2024-11-12-065535-ELEMNT ROAM 8055-155-0.fit"
     with open(fit_file_path, "rb") as f:
         response = client.post("/upload_activity", headers=auth_headers, files={"file": ("test.fit", f, "application/octet-stream")})
@@ -144,7 +89,7 @@ def test_upload_activity_fit(auth_headers: dict, test_user: User, dbsession: Ses
     assert activity is not None
     assert activity.name == "Ride"
 
-def test_upload_activity_gpx(auth_headers: dict, test_user: User, dbsession: Session):
+def test_upload_activity_gpx(auth_headers: dict, test_user: User, dbsession, client):
     gpx_content = """<?xml version="1.0" encoding="UTF-8"?>
 <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
   <trk>
@@ -166,7 +111,7 @@ def test_upload_activity_gpx(auth_headers: dict, test_user: User, dbsession: Ses
     assert activity is not None
     assert activity.name == "Route"
 
-def test_get_activities(auth_headers: dict, test_user: User, dbsession: Session):
+def test_get_activities(auth_headers: dict, test_user: User, dbsession, client):
     create_activity_in_db(dbsession, test_user.id, "Activity 1")
     create_activity_in_db(dbsession, test_user.id, "Activity 2")
 
@@ -177,7 +122,7 @@ def test_get_activities(auth_headers: dict, test_user: User, dbsession: Session)
     assert data[0]["name"] == "Activity 2" # Sorted by date desc
     assert data[1]["name"] == "Activity 1"
 
-def test_get_activity(auth_headers: dict, test_user: User, dbsession: Session):
+def test_get_activity(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "My Activity")
 
     response = client.get(f"/activity/{activity.activity_id}", headers=auth_headers)
@@ -185,7 +130,7 @@ def test_get_activity(auth_headers: dict, test_user: User, dbsession: Session):
     data = response.json()
     assert data["activity_base"]["name"] == "My Activity"
 
-def test_update_activity(auth_headers: dict, test_user: User, dbsession: Session):
+def test_update_activity(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "Old Name")
 
     response = client.patch(f"/activity/{activity.activity_id}", headers=auth_headers, json={"name": "New Name", "tags": ["updated"]})
@@ -200,7 +145,7 @@ def test_update_activity(auth_headers: dict, test_user: User, dbsession: Session
     assert updated_activity.name == "New Name"
     assert updated_activity.tags == ["updated"]
 
-def test_delete_activity(auth_headers: dict, test_user: User, dbsession: Session):
+def test_delete_activity(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "To Be Deleted")
 
     response = client.delete(f"/activity/{activity.activity_id}", headers=auth_headers)
@@ -210,7 +155,7 @@ def test_delete_activity(auth_headers: dict, test_user: User, dbsession: Session
     deleted_activity = dbsession.exec(select(ActivityTable).where(ActivityTable.activity_id == activity.activity_id)).first()
     assert deleted_activity is None
 
-def test_get_activity_unauthorized(test_user: User, dbsession: Session):
+def test_get_activity_unauthorized(test_user: User, dbsession, client):
     # Create a second user and an activity for them
     other_user_data = {"email": "other@example.com", "password": "password123", "fullname": "Other User"}
     other_user = User.model_validate(other_user_data)
@@ -228,7 +173,7 @@ def test_get_activity_unauthorized(test_user: User, dbsession: Session):
     response = client.get(f"/activity/{activity.activity_id}", headers=headers)
     assert response.status_code == 200 
 
-def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbsession: Session):
+def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbsession, client):
     # As before, create another user and their activity
     other_user_data = {"email": "other@example.com", "password": "password123", "fullname": "Other User"}
     other_user = User.model_validate(other_user_data)
@@ -244,7 +189,7 @@ def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbses
     # Check that the response body is empty for an unauthorized request
     assert not response.content
 
-def test_get_activity_power_curve(auth_headers: dict, test_user: User, dbsession: Session):
+def test_get_activity_power_curve(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "Power Curve Activity")
     
     response = client.get(f"/activity/{activity.activity_id}/power-curve", headers=auth_headers)
@@ -261,8 +206,7 @@ def test_get_activity_power_curve(auth_headers: dict, test_user: User, dbsession
 # Teardown: Restore original dependencies if necessary
 # This is mostly for completeness if tests run in a shared environment or with other test suites.
 # Pytest fixtures usually handle cleanup well for test isolation.
-def teardown_module(module):
-    if original_get_db_session:
-        app.dependency_overrides[get_db_session] = original_get_db_session
-    else:
-        del app.dependency_overrides[get_db_session]
+# Teardown: Restore original dependencies if necessary
+# pytest fixtures usually handle cleanup well for test isolation.
+# Conftest fixtures handle app dependencies.
+
