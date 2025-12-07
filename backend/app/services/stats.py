@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 from typing import List, Optional
-from sqlmodel import Session, select, func, col, delete
+from sqlmodel import Session, select, delete
 from app.model import HistoricalStats, ActivityTable, User
 from app.services import analysis, data_processing
 
@@ -17,6 +17,31 @@ def get_period_ids(date: datetime) -> dict[str, str]:
         "MONTH": date.strftime("%Y-%m"),
         "WEEK": f"{iso_year}-W{iso_week:02d}"
     }
+
+def _backfill_activity_stats(session: Session, activity: ActivityTable):
+    """
+    Backfills missing stats (total_work, max_power, average_power) from serialized data.
+    """
+    if (activity.total_work is None or activity.max_power is None) and activity.data:
+        try:
+            df = data_processing.deserialize_dataframe(activity.data)
+            p_summary = analysis.compute_power_summary(df)
+            if p_summary:
+                updated = False
+                if activity.total_work is None and p_summary.total_work:
+                        activity.total_work = int(p_summary.total_work)
+                        updated = True
+                if activity.max_power is None and df is not None and 'power' in df.columns and not df['power'].dropna().empty:
+                        activity.max_power = int(df['power'].max())
+                        updated = True
+                if activity.average_power is None and p_summary.average_power:
+                        activity.average_power = int(p_summary.average_power)
+                        updated = True
+                
+                if updated:
+                    session.add(activity)
+        except Exception as e:
+            logger.warning(f"Failed to backfill stats for activity {activity.activity_id}: {e}")
 
 def update_stats_incremental(session: Session, user_id: int, activity: ActivityTable, operation: str = "add"):
     """
@@ -121,12 +146,8 @@ def rebuild_user_stats(session: Session, user_id: int):
     # In-memory aggregation to assume less DB hits
     stats_map = {} # (period_type, period_id) -> HistoricalStats
     
-    # Global Power Curve (reset)
-    # We should NOT clear power_curve here as it is handled by a separate process (recompute_user_curves)
-    # user = session.get(User, user_id)
-    # if user:
-    #     user.power_curve = {}
-    #     session.add(user)
+    # Global Power Curve is handled by a separate process (recompute_user_curves) and is NOT reset here.
+
     
     for activity in activities:
         if not activity.date:
@@ -135,23 +156,7 @@ def rebuild_user_stats(session: Session, user_id: int):
         period_ids = get_period_ids(activity.date)
         
         # Backfill stats if missing
-        if (activity.total_work is None or activity.max_power is None) and activity.data:
-            try:
-                # Deserialize only if needed
-                df = data_processing.deserialize_dataframe(activity.data)
-                p_summary = analysis.compute_power_summary(df)
-                if p_summary:
-                    if activity.total_work is None and p_summary.total_work:
-                         activity.total_work = int(p_summary.total_work)
-                    if activity.max_power is None and df is not None and 'power' in df.columns and not df['power'].dropna().empty:
-                         activity.max_power = int(df['power'].max())
-                    if activity.average_power is None and p_summary.average_power:
-                         activity.average_power = int(p_summary.average_power)
-                    
-                    # Persist backfill
-                    session.add(activity) 
-            except Exception as e:
-                logger.warning(f"Failed to backfill stats for activity {activity.activity_id}: {e}")
+        _backfill_activity_stats(session, activity)
 
         dist = activity.distance or 0.0
         m_time = activity.active_time or 0.0
@@ -197,11 +202,4 @@ def rebuild_user_stats(session: Session, user_id: int):
         
     session.commit()
 
-def calculate_activity_stats_fields(activity: ActivityTable):
-    """
-    Helper to compute max_power/avg_power/calories from activity data (if available)
-    and update the ActivityTable columns.
-    """
-    # This logic belongs in analysis or here?
-    # It requires parsing the FIT data.
-    pass
+

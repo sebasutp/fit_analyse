@@ -1,27 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GetToken, ParseBackendResponse } from '../Utils';
-import PowerCurve from '../power/PowerCurve';
 import TrainingVolumeChart from './TrainingVolumeChart';
-import { MetricBox } from '../MetricComponents';
-
+import StatsSummary from './StatsSummary';
+import StatsControls from './StatsControls';
+import PowerCurveSection from './PowerCurveSection';
+import ProfileForm from './ProfileForm';
 
 function Profile() {
     const [fullname, setFullname] = useState('');
     const [ftp, setFtp] = useState('');
     const [zones, setZones] = useState(Array(6).fill(''));
     const [powerCurve, setPowerCurve] = useState({});
-    const [selectedPeriod, setSelectedPeriod] = useState('all');
+
     // Stats Tab State
     const [statsTab, setStatsTab] = useState('all'); // all, year, custom
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [summaryStats, setSummaryStats] = useState(null);
 
-    // const [stats, setStats] = useState([]); // Deprecated in favor of summaryStats
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+
+    const [activeMainTab, setActiveMainTab] = useState('stats'); // stats, volume, power
+    const [isProfileExpanded, setIsProfileExpanded] = useState(false);
 
     useEffect(() => {
         const token = GetToken();
@@ -43,16 +46,12 @@ function Profile() {
                     if (data.power_zones && data.power_zones.length === 6) {
                         setZones(data.power_zones);
                     }
-                    if (data.power_zones && data.power_zones.length === 6) {
-                        setZones(data.power_zones);
-                    }
                     let pc = data.power_curve || {};
                     if (Array.isArray(pc)) {
                         pc = { 'all': pc };
                     }
                     setPowerCurve(pc);
                 }
-                setLoading(false);
                 setLoading(false);
             })
             .catch(err => {
@@ -100,37 +99,6 @@ function Profile() {
     }, [statsTab, customStart, customEnd, navigate]);
 
 
-
-    const handleZoneChange = (index, value) => {
-        const newZones = [...zones];
-        newZones[index] = value;
-        setZones(newZones);
-    };
-
-    const calculateZones = () => {
-        if (!ftp || ftp <= 0) {
-            alert("Please enter a valid FTP");
-            return;
-        }
-        const ftpVal = parseInt(ftp);
-        // Coggan Zones Upper Bounds
-        // Z1: 55%
-        // Z2: 75%
-        // Z3: 90%
-        // Z4: 105%
-        // Z5: 120%
-        // Z6: 150%
-        const newZones = [
-            Math.round(ftpVal * 0.55),
-            Math.round(ftpVal * 0.75),
-            Math.round(ftpVal * 0.90),
-            Math.round(ftpVal * 1.05),
-            Math.round(ftpVal * 1.20),
-            Math.round(ftpVal * 1.50)
-        ];
-        setZones(newZones);
-    };
-
     const handleSubmit = (e) => {
         e.preventDefault();
         const token = GetToken();
@@ -169,166 +137,82 @@ function Profile() {
 
     if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
 
+    const tabs = [
+        { id: 'stats', label: 'Stats' },
+        { id: 'volume', label: 'Training Volume' },
+        { id: 'power', label: 'Power Curve' },
+    ];
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl mx-auto space-y-6">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto space-y-6">
 
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
-                    <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">User Profile</h2>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Full Name
-                            </label>
-                            <input
-                                type="text"
-                                value={fullname}
-                                onChange={(e) => setFullname(e.target.value)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                FTP (Watts)
-                            </label>
-                            <div className="flex space-x-2">
-                                <input
-                                    type="number"
-                                    value={ftp}
-                                    onChange={(e) => setFtp(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={calculateZones}
-                                    className="mt-1 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                >
-                                    Auto-calc Zones
-                                </button>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">Updates zones based on Coggan levels.</p>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Power Zones (Upper Limits)
-                            </label>
-                            <div className="space-y-2">
-                                {zones.map((limit, idx) => (
-                                    <div key={idx} className="flex items-center">
-                                        <span className="w-20 text-sm text-gray-600 dark:text-gray-400">Zone {idx + 1}</span>
-                                        <input
-                                            type="number"
-                                            value={limit}
-                                            onChange={(e) => handleZoneChange(idx, e.target.value)}
-                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
-                                            placeholder={`Limit for Z${idx + 1}`}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">Zone 7 is anything above Zone 6 limit.</p>
-                        </div>
-
-                        <div className="flex justify-end items-center pt-4">
-                            <button
-                                type="submit"
-                                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                Save Changes
-                            </button>
-                        </div>
-
-                    </form>
-                </div>
-
-                {/* Stats Tabs */}
-                <div className="flex flex-col sm:flex-row items-center justify-between mb-4">
-                    <div className="flex space-x-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                        {['all', 'year', 'custom'].map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setStatsTab(tab)}
-                                className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${statsTab === tab
-                                    ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-white'
-                                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
-                            >
-                                {tab === 'all' ? 'All Time' : tab === 'year' ? 'This Year' : 'Custom'}
-                            </button>
-                        ))}
+                {/* Profile Header / Collapsible Form */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                    <div className="px-6 py-4 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {fullname ? `${fullname}'s Profile` : 'User Profile'}
+                        </h2>
+                        <button
+                            onClick={() => setIsProfileExpanded(!isProfileExpanded)}
+                            className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                        >
+                            {isProfileExpanded ? 'Collapse Settings' : 'Edit Profile Settings'}
+                        </button>
                     </div>
 
-                    {statsTab === 'custom' && (
-                        <div className="flex space-x-2 mt-2 sm:mt-0">
-                            <input
-                                type="date"
-                                value={customStart}
-                                onChange={e => setCustomStart(e.target.value)}
-                                className="text-sm border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            />
-                            <span className="self-center text-gray-500">-</span>
-                            <input
-                                type="date"
-                                value={customEnd}
-                                onChange={e => setCustomEnd(e.target.value)}
-                                className="text-sm border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    {isProfileExpanded && (
+                        <div className="px-6 pb-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <ProfileForm
+                                fullname={fullname} setFullname={setFullname}
+                                ftp={ftp} setFtp={setFtp}
+                                zones={zones} setZones={setZones}
+                                onSubmit={handleSubmit}
                             />
                         </div>
                     )}
                 </div>
 
-                {/* Basic Stats Summary */}
-                {summaryStats && (
-                    <div className="mb-8 space-y-4">
-                        {/* Totals Row */}
-                        <div>
-                            <h3 className="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">Totals</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                                <MetricBox name="Distance" value={`${summaryStats.distance.toFixed(0)} km`} />
-                                <MetricBox name="Elevation" value={`${summaryStats.elevation_gain.toFixed(0)} m`} />
-                                <MetricBox name="Time" value={`${(summaryStats.moving_time / 3600).toFixed(0)} h`} />
-                                <MetricBox name="Work" value={`${summaryStats.total_work} kJ`} />
-                                <MetricBox name="Activities" value={summaryStats.activity_count} />
-                            </div>
-                        </div>
+                {/* Main Tabs Navigation */}
+                <div className="border-b border-gray-200 dark:border-gray-700">
+                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveMainTab(tab.id)}
+                                className={`
+                                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                                    ${activeMainTab === tab.id
+                                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}
+                                `}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
 
-                        {/* Records Row */}
+                {/* Tab Content */}
+                <div className="mt-6">
+                    {activeMainTab === 'stats' && (
                         <div>
-                            <h3 className="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">Records</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <MetricBox name="Longest Dist" value={`${summaryStats.max_distance.toFixed(1)} km`} />
-                                <MetricBox name="Highest Elev" value={`${summaryStats.max_elevation_gain.toFixed(0)} m`} />
-                                <MetricBox name="Longest Time" value={`${(summaryStats.max_moving_time / 3600).toFixed(1)} h`} />
-                                <MetricBox name="Fastest Speed" value={`${(summaryStats.max_speed * 3600).toFixed(1)} km/h`} />
-                            </div>
+                            <StatsControls
+                                activeTab={statsTab} onTabChange={setStatsTab}
+                                customStart={customStart} onStartChange={setCustomStart}
+                                customEnd={customEnd} onEndChange={setCustomEnd}
+                            />
+                            <StatsSummary stats={summaryStats} />
                         </div>
-                    </div>
-                )}
-                {/* Training Volume Chart */}
-                <TrainingVolumeChart />
+                    )}
 
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Power Curve</h3>
-                        <div className="flex space-x-2">
-                            {['all', '3m', '6m', '12m'].map(period => (
-                                <button
-                                    key={period}
-                                    onClick={() => setSelectedPeriod(period)}
-                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${selectedPeriod === period
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                                        }`}
-                                >
-                                    {period === 'all' ? 'All Time' : period}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <PowerCurve powerCurveData={powerCurve[selectedPeriod] || []} />
+                    {activeMainTab === 'volume' && (
+                        <TrainingVolumeChart />
+                    )}
+
+                    {activeMainTab === 'power' && (
+                        <PowerCurveSection powerCurveData={powerCurve} />
+                    )}
                 </div>
             </div>
         </div>

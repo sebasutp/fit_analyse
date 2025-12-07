@@ -56,7 +56,7 @@ const TrainingVolumeChart = () => {
         labels: data.map(d => d.week), // Or use date formatted
         datasets: [
             {
-                label: unit === 'distance' ? 'Distance (km)' : unit === 'time' ? 'Time (h)' : 'Calories (kcal)',
+                label: unit === 'distance' ? 'Distance (km)' : 'Time (h)',
                 data: data.map(d => d[unit]),
                 backgroundColor: 'rgba(54, 162, 235, 0.5)',
                 borderColor: 'rgb(54, 162, 235)',
@@ -94,7 +94,7 @@ const TrainingVolumeChart = () => {
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
                     {/* Unit Selector */}
                     <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                        {['distance', 'time', 'calories'].map((u) => (
+                        {['distance', 'time'].map((u) => (
                             <button
                                 key={u}
                                 onClick={() => setUnit(u)}

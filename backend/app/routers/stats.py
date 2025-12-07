@@ -19,9 +19,8 @@ async def get_user_stats(
     Returns historical stats.
     By default returns ALL time and current YEAR.
     """
-    period_types = ["ALL", "YEAR"]
-    # If we wanted to parse "periods" arg to filter by specific period_id or type, we could.
-    # For now, let's stick to simple logic: return ALL and ALL YEARS.
+
+    # Simply return ALL and ALL YEARS for now.
     
     query = select(model.HistoricalStats).where(model.HistoricalStats.user_id == current_user_id.id)
     
@@ -119,11 +118,7 @@ async def get_training_volume(
     else: # all
         start_date = datetime.min
         
-    # We use "WEEK" period_type in HistoricalStats.
-    # period_id is "YYYY-Www"
-    # We can fetch all "WEEK" stats and filter python side or convert period_id to date.
-    # Converting ISO week to date in SQL is hard.
-    # Simpler: fetch all "WEEK" stats for user, parse locally, filter.
+    # We fetch all "WEEK" stats and filter locally as SQL ISO week date conversion is complex.
     
     weeks_stats = session.exec(
         select(model.HistoricalStats)
