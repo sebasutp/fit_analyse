@@ -63,6 +63,33 @@ def calculate_power_curve(ride_df: pd.DataFrame) -> list[dict[str, int | float]]
             
     return curve
 
+def merge_power_curves(curve1: list[dict[str, int | float]] | None, curve2: list[dict[str, int | float]] | None) -> list[dict[str, int | float]]:
+    """
+    Merges two power curves, keeping the maximum power for each duration.
+    Assumes curve format is list of {'duration': int, 'max_watts': float}.
+    """
+    if not curve1:
+        return curve2 or []
+    if not curve2:
+        return curve1 or []
+
+    # Convert to dict for easier lookup {duration: max_watts}
+    c1_map = {item['duration']: item['max_watts'] for item in curve1}
+    c2_map = {item['duration']: item['max_watts'] for item in curve2}
+    
+    all_durations = sorted(list(set(c1_map.keys()) | set(c2_map.keys())))
+    
+    merged_curve = []
+    for duration in all_durations:
+        p1 = c1_map.get(duration, 0)
+        p2 = c2_map.get(duration, 0)
+        merged_curve.append({
+            "duration": duration,
+            "max_watts": max(p1, p2)
+        })
+        
+    return merged_curve
+
 def calculate_time_in_zones(ride_df: pd.DataFrame, zones: Sequence[int]) -> list[float]:
     """
     Calculates the time spent in each power zone.

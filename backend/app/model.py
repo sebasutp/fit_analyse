@@ -28,11 +28,13 @@ class UserUpdate(BaseModel):
     fullname: Optional[str] = None
     ftp: Optional[int] = None
     power_zones: Optional[List[int]] = None
+    power_curve: Optional[List[dict]] = None
 
 class User(UserCreate, table=True):
     id: int = Field(default=None, primary_key=True)
     ftp: Optional[int] = Field(default=None)
     power_zones: Optional[List[int]] = Field(default=None, sa_column=Column(JSON))
+    power_curve: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
 
 class UserProfile(BaseModel):
     id: int
@@ -40,6 +42,7 @@ class UserProfile(BaseModel):
     fullname: Optional[str] = None
     ftp: Optional[int] = None
     power_zones: Optional[List[int]] = None
+    power_curve: Optional[List[dict]] = None
 
 
 # class Gear(SQLModel, table=True):

@@ -47,5 +47,25 @@ class TestPowerCurve(unittest.TestCase):
         curve = analysis.calculate_power_curve(df)
         self.assertEqual(curve, [])
 
+    def test_merge_power_curves(self):
+        curve1 = [{'duration': 1, 'max_watts': 200}, {'duration': 10, 'max_watts': 150}]
+        curve2 = [{'duration': 1, 'max_watts': 250}, {'duration': 10, 'max_watts': 100}]
+        
+        merged = analysis.merge_power_curves(curve1, curve2)
+        merged_dict = {item['duration']: item['max_watts'] for item in merged}
+        
+        self.assertEqual(merged_dict[1], 250)
+        self.assertEqual(merged_dict[10], 150)
+        
+    def test_merge_power_curves_different_durations(self):
+        curve1 = [{'duration': 1, 'max_watts': 200}]
+        curve2 = [{'duration': 5, 'max_watts': 180}]
+        
+        merged = analysis.merge_power_curves(curve1, curve2)
+        merged_dict = {item['duration']: item['max_watts'] for item in merged}
+        
+        self.assertEqual(merged_dict[1], 200)
+        self.assertEqual(merged_dict[5], 180)
+
 if __name__ == '__main__':
     unittest.main()

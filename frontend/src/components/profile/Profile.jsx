@@ -2,11 +2,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GetToken, ParseBackendResponse } from '../Utils';
+import PowerCurve from '../power/PowerCurve';
 
 function Profile() {
     const [fullname, setFullname] = useState('');
     const [ftp, setFtp] = useState('');
     const [zones, setZones] = useState(Array(6).fill(''));
+    const [powerCurve, setPowerCurve] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -30,6 +32,7 @@ function Profile() {
                     if (data.power_zones && data.power_zones.length === 6) {
                         setZones(data.power_zones);
                     }
+                    setPowerCurve(data.power_curve || []);
                 }
                 setLoading(false);
             })
@@ -109,75 +112,82 @@ function Profile() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow p-8">
-                <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">User Profile</h2>
-                <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="max-w-2xl mx-auto space-y-6">
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Full Name
-                        </label>
-                        <input
-                            type="text"
-                            value={fullname}
-                            onChange={(e) => setFullname(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
-                        />
-                    </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
+                    <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">User Profile</h2>
+                    <form onSubmit={handleSubmit} className="space-y-6">
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            FTP (Watts)
-                        </label>
-                        <div className="flex space-x-2">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Full Name
+                            </label>
                             <input
-                                type="number"
-                                value={ftp}
-                                onChange={(e) => setFtp(e.target.value)}
+                                type="text"
+                                value={fullname}
+                                onChange={(e) => setFullname(e.target.value)}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                FTP (Watts)
+                            </label>
+                            <div className="flex space-x-2">
+                                <input
+                                    type="number"
+                                    value={ftp}
+                                    onChange={(e) => setFtp(e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={calculateZones}
+                                    className="mt-1 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                >
+                                    Auto-calc Zones
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Updates zones based on Coggan levels.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Power Zones (Upper Limits)
+                            </label>
+                            <div className="space-y-2">
+                                {zones.map((limit, idx) => (
+                                    <div key={idx} className="flex items-center">
+                                        <span className="w-20 text-sm text-gray-600 dark:text-gray-400">Zone {idx + 1}</span>
+                                        <input
+                                            type="number"
+                                            value={limit}
+                                            onChange={(e) => handleZoneChange(idx, e.target.value)}
+                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
+                                            placeholder={`Limit for Z${idx + 1}`}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Zone 7 is anything above Zone 6 limit.</p>
+                        </div>
+
+                        <div className="flex justify-end items-center pt-4">
                             <button
-                                type="button"
-                                onClick={calculateZones}
-                                className="mt-1 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                type="submit"
+                                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
-                                Auto-calc Zones
+                                Save Changes
                             </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Updates zones based on Coggan levels.</p>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Power Zones (Upper Limits)
-                        </label>
-                        <div className="space-y-2">
-                            {zones.map((limit, idx) => (
-                                <div key={idx} className="flex items-center">
-                                    <span className="w-20 text-sm text-gray-600 dark:text-gray-400">Zone {idx + 1}</span>
-                                    <input
-                                        type="number"
-                                        value={limit}
-                                        onChange={(e) => handleZoneChange(idx, e.target.value)}
-                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
-                                        placeholder={`Limit for Z${idx + 1}`}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">Zone 7 is anything above Zone 6 limit.</p>
-                    </div>
+                    </form>
+                </div>
 
-                    <div className="flex justify-end items-center pt-4">
-                        <button
-                            type="submit"
-                            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                            Save Changes
-                        </button>
-                    </div>
-
-                </form>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
+                    <PowerCurve powerCurveData={powerCurve} />
+                </div>
             </div>
         </div>
     );
