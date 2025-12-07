@@ -46,6 +46,27 @@ class UserProfile(BaseModel):
     power_zones: Optional[List[int]] = None
     power_curve: Optional[dict] = None
 
+# Import UniqueConstraint for table args
+from sqlalchemy import UniqueConstraint
+
+class HistoricalStats(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    period_type: str = Field(index=True) # ALL, YEAR, MONTH, WEEK
+    period_id: str = Field(index=True) # "total", "2025", "2025-01", "2025-W10"
+    distance: float = Field(default=0.0)
+    moving_time: float = Field(default=0.0)
+    elapsed_time: float = Field(default=0.0)
+    elevation_gain: float = Field(default=0.0)
+    activity_count: int = Field(default=0)
+    max_power: Optional[int] = Field(default=None)
+    total_work: int = Field(default=0)
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "period_type", "period_id", name="unique_user_period_stats"),
+    )
+
 
 # class Gear(SQLModel, table=True):
 #     id: int = Field(default=None, primary_key=True)
@@ -116,6 +137,11 @@ class ActivityBase(SQLModel):
     date: datetime = Field(...)
     last_modified: datetime = Field(...)
     tags: Optional[List[str]] = Field(sa_column=Column(JSON))
+    
+    # New Stats Fields
+    max_power: Optional[int] = Field(default=None)
+    average_power: Optional[int] = Field(default=None)
+    total_work: Optional[int] = Field(default=None)
 
 class ActivityResponse(BaseModel):
     activity_base: Optional[ActivityBase] = None

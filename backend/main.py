@@ -18,8 +18,13 @@ flags.DEFINE_enum(
 flags.DEFINE_list(
     "run_batch_startup",
     [],
-    "List of batch jobs to run on startup. Available: 'power_curves'.",
+    "List of batch jobs to run on startup. Available: 'power_curves', 'historical_stats'.",
 )
+
+batch_jobs = {
+    "power_curves": cron_jobs.recompute_all_users_curves,
+    "historical_stats": cron_jobs.recompute_all_users_stats,
+}
 
 if __name__ == "__main__":
     # Parse command-line flags before accessing them.
@@ -33,8 +38,14 @@ if __name__ == "__main__":
     cron_jobs.start_scheduler()
     
     # Run batch jobs immediately if requested
-    if "power_curves" in FLAGS.run_batch_startup:
-        cron_jobs.recompute_all_users_curves()
+    import logging
+    for job in FLAGS.run_batch_startup:
+        if job not in batch_jobs:
+            logging.error(f"Batch job '{job}' not found. Available jobs: {list(batch_jobs.keys())}")
+            continue
+        else:
+            logging.info(f"Running batch job: '{job}'")
+            batch_jobs[job]()
     
     uvicorn.run(
         "app.api:app_obj",
