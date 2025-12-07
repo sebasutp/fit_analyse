@@ -47,5 +47,72 @@ class TestPowerCurve(unittest.TestCase):
         curve = analysis.calculate_power_curve(df)
         self.assertEqual(curve, [])
 
+    def test_merge_power_curves(self):
+        curve1 = [{'duration': 1, 'max_watts': 200}, {'duration': 10, 'max_watts': 150}]
+        curve2 = [{'duration': 1, 'max_watts': 250}, {'duration': 10, 'max_watts': 100}]
+        
+        merged = analysis.merge_power_curves(curve1, curve2)
+        merged_dict = {item['duration']: item['max_watts'] for item in merged}
+        
+        self.assertEqual(merged_dict[1], 250)
+        self.assertEqual(merged_dict[10], 150)
+        
+    def test_merge_power_curves_different_durations(self):
+        curve1 = [{'duration': 1, 'max_watts': 200}]
+        curve2 = [{'duration': 5, 'max_watts': 180}]
+        
+        merged = analysis.merge_power_curves(curve1, curve2)
+        merged_dict = {item['duration']: item['max_watts'] for item in merged}
+        
+        self.assertEqual(merged_dict[1], 200)
+        self.assertEqual(merged_dict[5], 180)
+
+    def test_update_user_curves_incremental(self):
+        # Base Curve
+        user_curves = {
+            'all': [{'duration': 1, 'max_watts': 200}],
+            '3m': [{'duration': 1, 'max_watts': 200}]
+        }
+        
+        # New activity curve (better)
+        new_curve = [{'duration': 1, 'max_watts': 300}]
+        
+        # Test Case 1: Recent activity (should update all and 3m)
+        recent_date = datetime.now()
+        updated = analysis.update_user_curves_incremental(user_curves, new_curve, recent_date)
+        
+        # Check 'all'
+        all_watts = {d['duration']: d['max_watts'] for d in updated['all']}
+        self.assertEqual(all_watts[1], 300)
+        
+        # Check '3m'
+        m3_watts = {d['duration']: d['max_watts'] for d in updated['3m']}
+        self.assertEqual(m3_watts[1], 300)
+        
+    def test_update_user_curves_incremental_old_activity(self):
+        # Base Curve
+        user_curves = {
+            'all': [{'duration': 1, 'max_watts': 200}],
+            '3m': [{'duration': 1, 'max_watts': 200}]
+        }
+        
+        # New activity curve (better)
+        new_curve = [{'duration': 1, 'max_watts': 300}]
+        
+        # Test Case 2: Old activity (should update 'all' but NOT '3m')
+        # 4 months ago
+        from datetime import timedelta
+        old_date = datetime.now() - timedelta(days=120)
+        
+        updated = analysis.update_user_curves_incremental(user_curves, new_curve, old_date)
+        
+        # Check 'all' -> should be updated
+        all_watts = {d['duration']: d['max_watts'] for d in updated['all']}
+        self.assertEqual(all_watts[1], 300)
+        
+        # Check '3m' -> should NOT be updated (remain 200)
+        m3_watts = {d['duration']: d['max_watts'] for d in updated['3m']}
+        self.assertEqual(m3_watts[1], 200)
+
 if __name__ == '__main__':
     unittest.main()

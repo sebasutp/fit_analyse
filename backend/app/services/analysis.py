@@ -1,9 +1,14 @@
 import re
 import pandas as pd
 import numpy as np
+import os
+from datetime import datetime, timedelta
 from typing import Sequence, Optional
 from app import model
 from app.services import utils, data_processing, maps
+
+# Configuration
+POWER_CURVE_PERIODS = [int(p) for p in os.getenv("POWER_CURVE_PERIODS", "3,6,12").split(",")]
 
 def calculate_power_curve(ride_df: pd.DataFrame) -> list[dict[str, int | float]]:
     if ride_df is None or ride_df.empty or 'power' not in ride_df.columns:
@@ -62,6 +67,73 @@ def calculate_power_curve(ride_df: pd.DataFrame) -> list[dict[str, int | float]]
             })
             
     return curve
+
+def merge_power_curves(curve1: list[dict[str, int | float]] | None, curve2: list[dict[str, int | float]] | None) -> list[dict[str, int | float]]:
+    """
+    Merges two power curves, keeping the maximum power for each duration.
+    Assumes curve format is list of {'duration': int, 'max_watts': float}.
+    """
+    if not curve1:
+        return curve2 or []
+    if not curve2:
+        return curve1 or []
+
+    # Convert to dict for easier lookup {duration: max_watts}
+    c1_map = {item['duration']: item['max_watts'] for item in curve1}
+    c2_map = {item['duration']: item['max_watts'] for item in curve2}
+    
+    all_durations = sorted(list(set(c1_map.keys()) | set(c2_map.keys())))
+    
+    merged_curve = []
+    for duration in all_durations:
+        p1 = c1_map.get(duration, 0)
+        p2 = c2_map.get(duration, 0)
+        merged_curve.append({
+            "duration": duration,
+            "max_watts": max(p1, p2)
+        })
+        
+    return merged_curve
+
+def update_user_curves_incremental(
+    user_curves: dict | None,
+    new_curve: list[dict[str, int | float]],
+    activity_date: datetime
+) -> dict:
+    """
+    Updates the user's power curves incrementally with a new activity's curve.
+    """
+    if user_curves is None:
+        user_curves = {}
+    
+    # helper to ensure curve exists
+    def ensure_curve(key):
+        if key not in user_curves:
+            user_curves[key] = []
+            
+    # Always update 'all'
+    ensure_curve('all')
+    user_curves['all'] = merge_power_curves(user_curves['all'], new_curve)
+    
+    now = datetime.now(activity_date.tzinfo) # Use same timezone as activity if possible, or naive
+    
+    # Handle timezone naivety mixing
+    if activity_date.tzinfo is None and now.tzinfo is not None:
+        activity_date = activity_date.replace(tzinfo=now.tzinfo)
+    elif activity_date.tzinfo is not None and now.tzinfo is None:
+        now = now.replace(tzinfo=activity_date.tzinfo)
+
+    for period_months in POWER_CURVE_PERIODS:
+        key = f"{period_months}m"
+        ensure_curve(key)
+        
+        # Approximate month as 30 days
+        cutoff = now - timedelta(days=period_months * 30)
+        
+        if activity_date >= cutoff:
+            user_curves[key] = merge_power_curves(user_curves[key], new_curve)
+            
+    return user_curves
 
 def calculate_time_in_zones(ride_df: pd.DataFrame, zones: Sequence[int]) -> list[float]:
     """

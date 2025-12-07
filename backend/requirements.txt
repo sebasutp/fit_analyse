@@ -5,7 +5,7 @@ python-decouple==3.8
 uvicorn==0.29.0
 sqlmodel==0.0.19
 passlib==1.7.4
-bcrypt==4.1.3
+bcrypt==4.0.1
 python-dotenv==1.0.1
 pandas==2.2.3
 numpy==1.26.4
@@ -18,3 +18,4 @@ pytest==8.3.5
 pytest-mock==3.14.1
 gpxpy==1.6.2
 absl-py==2.2.2
+APScheduler==3.10.4

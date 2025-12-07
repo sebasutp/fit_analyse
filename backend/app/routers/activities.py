@@ -162,6 +162,14 @@ async def upload_activity(
         activity_db.laps_data = data_processing.serialize_dataframe(laps_df)
 
     session.add(activity_db)
+
+    # Update user power curve
+    user = session.get(model.User, current_user_id.id)
+    if user and ride_df is not None and not ride_df.empty:
+        new_curve = analysis.calculate_power_curve(ride_df)
+        user.power_curve = analysis.update_user_curves_incremental(user.power_curve, new_curve, activity_db.date)
+        session.add(user)
+
     session.commit()
     session.refresh(activity_db)
     return activity_db
