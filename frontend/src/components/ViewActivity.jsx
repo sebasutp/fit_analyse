@@ -5,6 +5,7 @@ import { FaDownload } from "react-icons/fa6";
 
 import PowerCard from './power/PowerCard'
 import PowerCurve from './power/PowerCurve';
+import { PowerZonesChart } from './activity/PowerZonesChart';
 import { ElevCard } from './activity/ElevationCard';
 import { Metric, MetricBox } from './MetricComponents'
 import LapsTable from './activity/LapsTable'; // Adjust path if necessary
@@ -230,6 +231,11 @@ function ViewActivity() {
           )}
           {powerCurveData && powerCurveData.length > 0 && (
             <PowerCurve powerCurveData={powerCurveData} />
+          )}
+          {activity?.activity_analysis?.time_in_zones && (
+            <div className="w-full max-w-4xl mt-6 p-4 bg-white rounded-lg shadow dark:bg-gray-800">
+              <PowerZonesChart timeInZones={activity.activity_analysis.time_in_zones} />
+            </div>
           )}
           {activity?.laps && activity.laps.length > 1 && (
             <LapsTable laps={activity.laps} />

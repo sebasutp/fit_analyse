@@ -24,3 +24,29 @@ async def create_user(
     return model.Token(
         access_token=auth_handler.create_access_token(db_user),
         token_type="bearer")
+
+@router.get("/user/me", response_model=model.UserProfile, tags=["user"])
+async def get_user_me(
+    current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
+    session: Session = Depends(get_db_session)
+):
+    user = session.get(model.User, current_user_id.id)
+    return user
+
+@router.put("/user/me", response_model=model.UserProfile, tags=["user"])
+async def update_user_me(
+    user_update: model.UserUpdate,
+    current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
+    session: Session = Depends(get_db_session)
+):
+    user = session.get(model.User, current_user_id.id)
+    if not user:
+        # Should not happen as we have the token
+        return None
+    
+    user_data = user_update.model_dump(exclude_unset=True)
+    user.sqlmodel_update(user_data)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
