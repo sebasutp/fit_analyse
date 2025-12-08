@@ -142,6 +142,7 @@ class ActivityBase(SQLModel):
     max_power: Optional[int] = Field(default=None)
     average_power: Optional[int] = Field(default=None)
     total_work: Optional[int] = Field(default=None)
+    val_hash: Optional[str] = Field(default=None, index=True)
 
 class ActivityResponse(BaseModel):
     activity_base: Optional[ActivityBase] = None

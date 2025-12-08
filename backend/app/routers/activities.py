@@ -2,6 +2,7 @@ import os
 import logging
 import msgpack
 import pandas as pd
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -100,6 +101,23 @@ async def upload_activity(
     file_bytes = await file.read()
     await file.close()
 
+    # Calculate SHA256 hash
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+
+    # Check validation 1: Hash exists
+    existing_activity_by_hash = session.exec(select(model.ActivityTable).where(
+        model.ActivityTable.owner_id == current_user_id.id,
+        model.ActivityTable.val_hash == file_hash
+    )).first()
+
+    if existing_activity_by_hash:
+        logger.info(f"Duplicate upload prevented by hash: {file_hash}")
+        # Return existing activity
+        # We need to ensure we return ActivityBase compatible object.
+        # But wait, upload_activity returns ActivityBase.
+        # existing_activity_by_hash is ActivityTable which inherits ActivityBase.
+        return existing_activity_by_hash
+
     ride_df = None
     activity_type = None
     default_name = "Activity"
@@ -121,7 +139,7 @@ async def upload_activity(
         default_name = "Route"
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a .fit or .gpx file.")
-    print(ride_df.head())
+    # print(ride_df.head()) # Removing print
 
     if ride_df is None or ride_df.empty:
         raise HTTPException(status_code=400, detail="Failed to parse file or file is empty.")
@@ -140,7 +158,29 @@ async def upload_activity(
         else:
             activity_date = activity_date.tz_convert('UTC')
     
-    
+    # Check validation 2: Same date, no hash (Legacy activity)
+    # We allow a small margin of error for "same date" just in case of parsing diffs, but usually exact match on timestamp is what we want for "same file".
+    # Actually, timestamp in DB is datetime.
+    existing_activity_by_date = session.exec(select(model.ActivityTable).where(
+        model.ActivityTable.owner_id == current_user_id.id,
+        model.ActivityTable.date == activity_date
+    )).first()
+
+    if existing_activity_by_date and existing_activity_by_date.val_hash is None:
+        logger.info(f"Updating legacy activity {existing_activity_by_date.activity_id} with hash {file_hash}")
+        existing_activity_by_date.val_hash = file_hash
+        session.add(existing_activity_by_date)
+        session.commit()
+        session.refresh(existing_activity_by_date)
+        return existing_activity_by_date
+    elif existing_activity_by_date and existing_activity_by_date.val_hash is not None:
+         # Same date, but already has a hash (different from current one, otherwise caught by first check).
+         # This means it's a different file with same timestamp? Or collision?
+         # Proceed to upload as new (or duplicate allowed if different hashes).
+         # Be careful about uniqueness constraints if any. Activity ID is random, so it's fine.
+         pass
+
+
     # Calculate additional stats
     max_power = None
     average_power = None
@@ -174,7 +214,8 @@ async def upload_activity(
         tags=None,
         max_power=max_power,
         average_power=average_power,
-        total_work=total_work
+        total_work=total_work,
+        val_hash=file_hash
     )
 
     if filename.endswith('.fit'):
@@ -367,3 +408,18 @@ async def delete_activity(
     session.commit()
 
     return Response(status_code=200)
+
+@router.get("/activities/hashes", response_model=list[str])
+async def get_activity_hashes(
+    *,
+    session: Session = Depends(get_db_session),
+    current_user_id: model.UserId = Depends(auth_handler.get_current_user_id),
+):
+    """
+    Fetches a list of all activity hashes for the current user.
+    """
+    hashes = session.exec(select(model.ActivityTable.val_hash).where(
+        model.ActivityTable.owner_id == current_user_id.id,
+        model.ActivityTable.val_hash != None
+    )).all()
+    return hashes
