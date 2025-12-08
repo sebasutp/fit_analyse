@@ -50,6 +50,9 @@ def update_stats_incremental(session: Session, user_id: int, activity: ActivityT
     """
     if not activity.date:
         return
+        
+    if activity.activity_type == "route":
+        return
 
     # For update, we might need the *old* date if it changed, which is hard to pass here.
     # The caller should handle 'update' by deleting stats for old version and adding new.
@@ -158,6 +161,9 @@ def rebuild_user_stats(session: Session, user_id: int):
     
     for activity in activities:
         if not activity.date:
+            continue
+            
+        if activity.activity_type == "route":
             continue
             
         period_ids = get_period_ids(activity.date)
