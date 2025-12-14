@@ -26,6 +26,10 @@ Make sure to use Python3.10 or newer.
     DB_URL="sqlite:///database.db"
     TOKEN_TIMEOUT=30
     PORT=8082
+    
+    # Optional: External Authentication
+    # AUTH_PROVIDER="external" # Defaults to "local". Set to "external" to enable Auth Service integration.
+    # AUTH_SERVICE_URL="http://localhost:8000" # The backend URL of the Auth Service (used for server-to-server validation).
     ```
 
 5. If you use a different DB_URL, please update it also in `./backend/alembic.ini`. Then
@@ -88,10 +92,13 @@ Make sure to change the .env file to point to the right
 backend. Then run the frontend using in development mode
 using:
 
-```
   npm install
   npm run dev
 ```
+
+For external authentication support, add `VITE_AUTH_SERVICE_URL` (backend) and `VITE_AUTH_SERVICE_UI_URL` (frontend) to your frontend `.env`.
+ `VITE_AUTH_SERVICE_UI_URL` should point to the **Auth Service Frontend** (e.g., `http://localhost:5173`) and is used to show the login page.
+
 
 ### Deploy Instructions
 
