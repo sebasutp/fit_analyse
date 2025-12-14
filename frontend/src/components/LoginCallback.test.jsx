@@ -1,30 +1,22 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import LoginCallback from './LoginCallback';
+import * as AuthContextModule from '../contexts/AuthContext';
 
-// Mock localStorage
-const localStorageMock = (() => {
-    let store = {};
-    return {
-        getItem: (key) => store[key] || null,
-        setItem: (key, value) => {
-            store[key] = value.toString();
-        },
-        clear: () => {
-            store = {};
-        },
-        removeItem: (key) => {
-            delete store[key];
-        }
-    };
-})();
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+// Mock useAuth
+const mockLoginWithExternalToken = vi.fn();
+vi.mock('../contexts/AuthContext', () => ({
+    useAuth: () => ({
+        loginWithExternalToken: mockLoginWithExternalToken,
+    }),
+}));
+
 
 describe('LoginCallback component', () => {
     beforeEach(() => {
-        localStorageMock.clear();
-        vi.restoreAllMocks();
+        vi.clearAllMocks();
     });
 
     const renderWithRouter = (initialUrl) => {
@@ -39,76 +31,51 @@ describe('LoginCallback component', () => {
         );
     };
 
-    it('processes access_token from hash and calls exchange-token', async () => {
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ access_token: 'local_jwt_token' }),
-        });
+    it('processes access_token from hash and calls loginWithExternalToken', async () => {
+        mockLoginWithExternalToken.mockResolvedValue(); // Success
 
         renderWithRouter('/login/callback#access_token=external_token_123');
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining('/exchange-token'),
-                expect.objectContaining({
-                    method: 'POST',
-                    body: JSON.stringify({ external_token: 'external_token_123' }),
-                })
-            );
+            expect(mockLoginWithExternalToken).toHaveBeenCalledWith('external_token_123');
         });
 
+        // Assert redirect to home
         await waitFor(() => {
-            expect(localStorage.getItem('token')).toBe('local_jwt_token');
+            expect(screen.getByText('Home Page')).toBeInTheDocument();
         });
     });
 
-    it('processes token from hash (backend style) and calls exchange-token', async () => {
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ access_token: 'local_jwt_token_2' }),
-        });
+    it('processes token from hash (backend style) and calls loginWithExternalToken', async () => {
+        mockLoginWithExternalToken.mockResolvedValue();
 
         renderWithRouter('/login/callback#token=external_token_456');
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining('/exchange-token'),
-                expect.objectContaining({
-                    method: 'POST',
-                    body: JSON.stringify({ external_token: 'external_token_456' }),
-                })
-            );
+            expect(mockLoginWithExternalToken).toHaveBeenCalledWith('external_token_456');
         });
-
+        // Assert redirect to home
         await waitFor(() => {
-            expect(localStorage.getItem('token')).toBe('local_jwt_token_2');
+            expect(screen.getByText('Home Page')).toBeInTheDocument();
         });
     });
 
-    it('processes access_token from query params and calls exchange-token', async () => {
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ access_token: 'local_jwt_token_3' }),
-        });
+    it('processes access_token from query params and calls loginWithExternalToken', async () => {
+        mockLoginWithExternalToken.mockResolvedValue();
 
         renderWithRouter('/login/callback?access_token=external_token_789');
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining('/exchange-token'),
-                expect.objectContaining({
-                    method: 'POST',
-                    body: JSON.stringify({ external_token: 'external_token_789' }),
-                })
-            );
+            expect(mockLoginWithExternalToken).toHaveBeenCalledWith('external_token_789');
+        });
+        // Assert redirect to home
+        await waitFor(() => {
+            expect(screen.getByText('Home Page')).toBeInTheDocument();
         });
     });
 
-    it('redirects to login with error if exchange fails', async () => {
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: false,
-            json: async () => ({ detail: 'Invalid token' }),
-        });
+    it('redirects to login with error if loginWithExternalToken fails', async () => {
+        mockLoginWithExternalToken.mockRejectedValue(new Error('Invalid token'));
 
         renderWithRouter('/login/callback#access_token=bad_token');
 

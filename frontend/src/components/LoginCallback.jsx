@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 function LoginCallback() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { loginWithExternalToken } = useAuth();
 
     useEffect(() => {
         const handleCallback = async () => {
@@ -12,6 +14,7 @@ function LoginCallback() {
             const hashParams = new URLSearchParams(hash);
             const searchParams = new URLSearchParams(location.search);
 
+            // Prioritize access_token, fallback to token (compatibility)
             const externalToken = hashParams.get('access_token') || hashParams.get('token') || searchParams.get('access_token') || searchParams.get('token');
             const error = hashParams.get('error') || searchParams.get('error');
 
@@ -27,26 +30,11 @@ function LoginCallback() {
                 return;
             }
 
-            // 2. Exchange external token for local token
+            // 2. Exchange external token for local token via Context
             try {
-                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exchange-token`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ external_token: externalToken }),
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.detail || 'Token exchange failed');
-                }
-
-                const data = await response.json();
-
-                // 3. Store local token and redirect
+                await loginWithExternalToken(externalToken);
+                // 3. Redirect
                 console.log('Login successful via external auth');
-                localStorage.setItem('token', data.access_token);
                 navigate('/');
 
             } catch (err) {
@@ -56,7 +44,7 @@ function LoginCallback() {
         };
 
         handleCallback();
-    }, [location, navigate]);
+    }, [location, navigate, loginWithExternalToken]);
 
     return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
