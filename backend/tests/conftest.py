@@ -20,6 +20,15 @@ engine = create_engine(DATABASE_URL, poolclass=StaticPool, connect_args={"check_
 def engine_fixture():
     return engine
 
+@pytest.fixture(scope="session", autouse=True)
+def mock_env():
+    """Ensure tests run with a known valid environment, ignoring local .env"""
+    import os
+    os.environ["AUTH_PROVIDER"] = "local"
+    # Add other defaults as needed
+    os.environ["JWT_SECRET"] = "testselect"
+    os.environ["JWT_ALGORITHM"] = "HS256"
+
 @pytest.fixture(scope="function", autouse=True)
 def setup_database(engine_fixture):
     SQLModel.metadata.create_all(engine_fixture)
