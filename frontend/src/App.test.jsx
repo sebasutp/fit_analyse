@@ -22,11 +22,15 @@ global.fetch = vi.fn().mockImplementation(() =>
 );
 
 
+import { AuthProvider } from './contexts/AuthContext';
+
 describe('App Component Smoke Test', () => {
     it('renders without crashing', () => {
         render(
             <MemoryRouter>
-                <App />
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
             </MemoryRouter>
         );
         // If it crashes, this line is never reached.
