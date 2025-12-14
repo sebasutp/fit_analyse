@@ -19,3 +19,4 @@ pytest-mock==3.14.1
 gpxpy==1.6.2
 absl-py==2.2.2
 APScheduler==3.10.4
+httpx==0.27.0

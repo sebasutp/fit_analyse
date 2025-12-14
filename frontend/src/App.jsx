@@ -7,7 +7,7 @@ import Activities from './components/Activities.jsx'
 import RouteMap from './components/RouteMap.jsx';
 import Profile from './components/profile/Profile.jsx';
 import NavMenu from './components/NavMenu.jsx';
-// import NavMenu from './components/NavMenu.jsx';
+import LoginCallback from './components/LoginCallback.jsx';
 
 function App() {
 
@@ -17,6 +17,7 @@ function App() {
       <Routes>
         {/* Public Route (accessible without login) */}
         <Route path="/login" element={<Login />} />
+        <Route path="/login/callback" element={<LoginCallback />} />
 
         {/* Protected Route (requires login) */}
         <Route path="/" element={<Activities />} />

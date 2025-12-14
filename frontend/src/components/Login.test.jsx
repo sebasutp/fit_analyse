@@ -1,15 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Login from './Login';
-
-// Mock the global fetch function
-global.fetch = vi.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ access_token: 'fake_token' }),
-  })
-);
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -27,12 +19,36 @@ const localStorageMock = (() => {
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 describe('Login component', () => {
-  it('submits the form, gets a token, and stores it in localStorage', async () => {
+  beforeEach(() => {
+    localStorageMock.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('renders local login form when auth_provider is local', async () => {
+    global.fetch = vi.fn((url) => {
+      if (url.includes('/config')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ auth_provider: 'local' }),
+        });
+      }
+      if (url.includes('/token')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ access_token: 'fake_token' }),
+        });
+      }
+      return Promise.reject(new Error('Unknown URL'));
+    });
+
     render(
       <MemoryRouter>
         <Login />
       </MemoryRouter>
     );
+
+    // Wait for form to appear
+    await waitFor(() => screen.getByLabelText(/username/i));
 
     // Find the input fields and the button
     const usernameInput = screen.getByLabelText(/username/i);
@@ -48,17 +64,38 @@ describe('Login component', () => {
 
     // Wait for the async actions to complete
     await waitFor(() => {
-      // Assert that fetch was called
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem('token')).toBe('fake_token');
+    });
+  });
+
+  it('renders external login button when auth_provider is external', async () => {
+    // Mock fetch for config
+    global.fetch = vi.fn((url) => {
+      if (url.includes('/config')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ auth_provider: 'external' }),
+        });
+      }
+      return Promise.reject(new Error('Unknown URL'));
     });
 
-    // Assert that fetch was called with the correct URL
-    expect(global.fetch).toHaveBeenCalledWith(
-      `${import.meta.env.VITE_BACKEND_URL}/token`,
-      expect.any(Object)
+    // Mock window.location.href
+    // We can't easily mock window.location property directly in jsdom this way usually, 
+    // but we can check if the button is there.
+    // To test the click, we might need to delete window.location and mock it, 
+    // or just checking the button existence is enough for now.
+
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
     );
 
-    // Assert that the token is stored in localStorage
-    expect(localStorage.getItem('token')).toBe('fake_token');
+    // Wait for button
+    await waitFor(() => screen.getByText(/Sign in with Google/i));
+
+    expect(screen.queryByLabelText(/username/i)).toBeNull();
+    expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
   });
 });
