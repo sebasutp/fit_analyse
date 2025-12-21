@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Sequence, Optional
 from app import model
 from app.services import utils, data_processing, maps
+from rapidfuzz import fuzz
 
 # Configuration
 POWER_CURVE_PERIODS = [int(p) for p in os.getenv("POWER_CURVE_PERIODS", "3,6,12").split(",")]
@@ -366,6 +367,54 @@ def get_activity_response(
                 ans.laps = processed_laps_list
     return ans
 
+# Fuzzy match threshold
+def calculate_term_match(term: str, text: str, threshold: int = 75) -> int:
+    """
+    Calculates the fuzzy match score of a term against a text.
+    Returns 0 if score is below threshold.
+    """
+    if not text:
+        return 0
+    
+    score = fuzz.partial_ratio(term.lower(), text.lower())
+    if score >= threshold:
+        return score
+    return 0
+
+def score_activity(
+    activity: model.ActivityTable, 
+    search_terms: list[str],
+    threshold: int = 75
+) -> int:
+    """
+    Calculates the total score for an activity against a list of search terms.
+    Returns 0 if any term does not match.
+    """
+    total_score = 0
+    
+    # Prepare text to search against
+    name_str = activity.name if activity.name else ""
+    tags_list = activity.tags if activity.tags else []
+    
+    for term in search_terms:
+        best_term_score = 0
+        
+        # Check Name
+        score_name = calculate_term_match(term, name_str, threshold)
+        best_term_score = max(best_term_score, score_name)
+        
+        # Check Tags
+        for tag in tags_list:
+            score_tag = calculate_term_match(term, tag, threshold)
+            best_term_score = max(best_term_score, score_tag)
+        
+        if best_term_score == 0:
+            return 0 # Term not found
+        
+        total_score += best_term_score
+        
+    return total_score
+
 def search_and_rank_activities(
     activities: Sequence[model.ActivityTable],
     search_query: str
@@ -373,27 +422,24 @@ def search_and_rank_activities(
     if not search_query:
         return list(activities)
 
-    search_terms = {term.lower() for term in re.split(r'\s+', search_query.strip()) if term}
+    # Split query into terms, remove empty strings
+    search_terms = [term.strip() for term in re.split(r'\s+', search_query.strip()) if term.strip()]
     if not search_terms:
         return list(activities)
+        
+    try:
+        threshold = int(os.getenv("SEARCH_MATCH_THRESHOLD", 75))
+    except ValueError:
+        threshold = 75
 
     scored_activities = []
 
     for activity in activities:
-        score = 0
-
-        activity_title_words = set()
-        if activity.name:
-            activity_title_words = {word.lower() for word in re.split(r'\s+', activity.name.strip()) if word}
-        score += len(search_terms.intersection(activity_title_words))
-
-        if activity.tags:
-            activity_tags_lower = {tag.lower() for tag in activity.tags}
-            score += len(search_terms.intersection(activity_tags_lower))
-
+        score = score_activity(activity, search_terms, threshold)
         if score > 0:
             scored_activities.append({"activity": activity, "score": score})
 
+    # Sort by score descending, then by date descending
     sorted_activities_with_scores = sorted(
         scored_activities,
         key=lambda x: (x["score"], x["activity"].date),
