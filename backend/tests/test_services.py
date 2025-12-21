@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from app import model
-from app.services import data_processing, analysis, maps, activity_crud
+from app.services import data_processing, analysis, maps, activity_crud, elevation
 from unittest.mock import patch
 import io
 from datetime import datetime
@@ -28,7 +28,7 @@ class TestServices(unittest.TestCase):
         df = pd.DataFrame({
             'altitude': [10, 12, 15, 14, 16, 13, 17, 18, 16]
         })
-        intervals = analysis.compute_elevation_gain_intervals(df, tolerance=0.5, min_elev=2.0)
+        intervals = elevation.compute_elevation_gain_intervals(df, tolerance=0.5, min_elev=2.0)
         self.assertEqual(len(intervals), 2)
         self.assertEqual(intervals[0].from_ix, 0)
         self.assertEqual(intervals[0].to_ix, 2)
@@ -41,14 +41,14 @@ class TestServices(unittest.TestCase):
         df = pd.DataFrame({
             'altitude': [10, 10, 10, 10, 10, 10, 10]
         })
-        intervals = analysis.compute_elevation_gain_intervals(df, tolerance=1.0, min_elev=2.0)
+        intervals = elevation.compute_elevation_gain_intervals(df, tolerance=1.0, min_elev=2.0)
         self.assertEqual(len(intervals), 0)
         
     def test_compute_elevation_gain(self):
         df = pd.DataFrame({
             'altitude': [10, 12, 15, 14, 16, 13, 17, 18, 16]
         })
-        total_gain = analysis.compute_elevation_gain(df, tolerance=0.5, min_elev=2.0)
+        total_gain = elevation.compute_elevation_gain(df, tolerance=0.5, min_elev=2.0)
         self.assertEqual(total_gain, 10.0)
 
 

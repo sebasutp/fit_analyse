@@ -7,6 +7,7 @@ import subprocess
 import sys
 import pandas as pd
 import pyarrow.ipc as pa_ipc
+import pyarrow as pa
 import time
 import io  # Needed for BytesIO
 import numpy as np
@@ -93,19 +94,21 @@ def go_extract_data(go_program_path: str, fit_file_content: bytes, extraction_ty
             if col not in scales:
                 continue
             my_type = df[col].dtype
-            missing_val = np.iinfo(my_type).max
-            is_missing = df[col] == missing_val
+            if np.issubdtype(my_type, np.integer):
+                missing_val = np.iinfo(my_type).max
+                is_missing = df[col] == missing_val
+                df.loc[is_missing, col] = np.nan
+
             df[col] = df[col] / scales[col]
             if col in bias:
                 df[col] += bias[col]
-            df.loc[is_missing, col] = np.nan
 
         return df
 
     except FileNotFoundError:
         logging.error(f"Error: Go executable not found at {go_program_path}")
         return None
-    except pa_ipc.ArrowInvalid as e:
+    except pa.ArrowInvalid as e:
          logging.error(f"Error reading Arrow stream from Go process: {e}")
          logging.error(f"Go process return code: {process.returncode}")
          logging.error(f"Go stderr:\n{stderr_output}")

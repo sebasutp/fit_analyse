@@ -4,7 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlmodel import Session, select
 from app import model
 from app.database import engine
-from app.services import analysis, data_processing, stats
+from app.services import analysis, data_processing, stats, power
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,8 @@ def recompute_user_curves(session: Session, user: model.User):
             if df is None or df.empty:
                 continue
                 
-            curve = analysis.calculate_power_curve(df)
-            user_curves = analysis.update_user_curves_incremental(user_curves, curve, activity.date)
+            curve = power.calculate_power_curve(df)
+            user_curves = power.update_user_curves_incremental(user_curves, curve, activity.date)
         except Exception as e:
             logger.warning(f"Failed to process activity {activity.activity_id} for power curve: {e}")
             

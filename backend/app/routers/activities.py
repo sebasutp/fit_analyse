@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 from app import model, fit_parsing, gpx_parsing
 from app.auth import auth_handler, crypto
 from app.database import get_db_session
-from app.services import analysis, maps, data_processing, activity_crud, stats
+from app.services import analysis, maps, data_processing, activity_crud, stats, power
 from dateutil import parser as date_parser
 
 logger = logging.getLogger('uvicorn.error')
@@ -230,8 +230,8 @@ async def upload_activity(
     # Update user power curve
     user = session.get(model.User, current_user_id.id)
     if user and ride_df is not None and not ride_df.empty:
-        new_curve = analysis.calculate_power_curve(ride_df)
-        user.power_curve = analysis.update_user_curves_incremental(user.power_curve, new_curve, activity_db.date)
+        new_curve = power.calculate_power_curve(ride_df)
+        user.power_curve = power.update_user_curves_incremental(user.power_curve, new_curve, activity_db.date)
         session.add(user)
         
     # Update Historical Stats
@@ -274,7 +274,7 @@ async def get_activity_power_curve(
     # fetch_activity raises 404 if not found
     
     activity_df = data_processing.get_activity_df(activity)
-    power_curve = analysis.calculate_power_curve(activity_df)
+    power_curve = power.calculate_power_curve(activity_df)
     
     return power_curve
 

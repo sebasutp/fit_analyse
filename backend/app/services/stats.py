@@ -3,7 +3,7 @@ import logging
 from typing import List, Optional
 from sqlmodel import Session, select, delete
 from app.model import HistoricalStats, ActivityTable, User
-from app.services import analysis, data_processing
+from app.services import analysis, data_processing, power
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def _backfill_activity_stats(session: Session, activity: ActivityTable):
     if (activity.total_work is None or activity.max_power is None) and activity.data:
         try:
             df = data_processing.deserialize_dataframe(activity.data)
-            p_summary = analysis.compute_power_summary(df)
+            p_summary = power.compute_power_summary(df)
             if p_summary:
                 updated = False
                 if activity.total_work is None and p_summary.total_work:

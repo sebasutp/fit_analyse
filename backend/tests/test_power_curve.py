@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from datetime import datetime
-from app.services import analysis
+from app.services import power
 
 class TestPowerCurve(unittest.TestCase):
 
@@ -25,7 +25,7 @@ class TestPowerCurve(unittest.TestCase):
         # Since our data is only 10s long, we expect values for 1, 2, 5, 10.
         # Durations larger than total time might be omitted or return None/0.
         
-        curve = analysis.calculate_power_curve(df)
+        curve = power.calculate_power_curve(df)
         
         # Convert list of dicts to a dict for easier assertion {duration: power}
         curve_dict = {item['duration']: item['max_watts'] for item in curve}
@@ -39,19 +39,19 @@ class TestPowerCurve(unittest.TestCase):
 
     def test_calculate_power_curve_empty(self):
         df = pd.DataFrame({'timestamp': [], 'power': []})
-        curve = analysis.calculate_power_curve(df)
+        curve = power.calculate_power_curve(df)
         self.assertEqual(curve, [])
 
     def test_calculate_power_curve_missing_columns(self):
         df = pd.DataFrame({'other': [1, 2, 3]})
-        curve = analysis.calculate_power_curve(df)
+        curve = power.calculate_power_curve(df)
         self.assertEqual(curve, [])
 
     def test_merge_power_curves(self):
         curve1 = [{'duration': 1, 'max_watts': 200}, {'duration': 10, 'max_watts': 150}]
         curve2 = [{'duration': 1, 'max_watts': 250}, {'duration': 10, 'max_watts': 100}]
         
-        merged = analysis.merge_power_curves(curve1, curve2)
+        merged = power.merge_power_curves(curve1, curve2)
         merged_dict = {item['duration']: item['max_watts'] for item in merged}
         
         self.assertEqual(merged_dict[1], 250)
@@ -61,7 +61,7 @@ class TestPowerCurve(unittest.TestCase):
         curve1 = [{'duration': 1, 'max_watts': 200}]
         curve2 = [{'duration': 5, 'max_watts': 180}]
         
-        merged = analysis.merge_power_curves(curve1, curve2)
+        merged = power.merge_power_curves(curve1, curve2)
         merged_dict = {item['duration']: item['max_watts'] for item in merged}
         
         self.assertEqual(merged_dict[1], 200)
@@ -79,7 +79,7 @@ class TestPowerCurve(unittest.TestCase):
         
         # Test Case 1: Recent activity (should update all and 3m)
         recent_date = datetime.now()
-        updated = analysis.update_user_curves_incremental(user_curves, new_curve, recent_date)
+        updated = power.update_user_curves_incremental(user_curves, new_curve, recent_date)
         
         # Check 'all'
         all_watts = {d['duration']: d['max_watts'] for d in updated['all']}
@@ -104,7 +104,7 @@ class TestPowerCurve(unittest.TestCase):
         from datetime import timedelta
         old_date = datetime.now() - timedelta(days=120)
         
-        updated = analysis.update_user_curves_incremental(user_curves, new_curve, old_date)
+        updated = power.update_user_curves_incremental(user_curves, new_curve, old_date)
         
         # Check 'all' -> should be updated
         all_watts = {d['duration']: d['max_watts'] for d in updated['all']}
