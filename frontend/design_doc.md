@@ -7,6 +7,9 @@ The frontend is a Single Page Application (SPA) built with **React**, **Vite**, 
 - **Build Tool**: Vite (fast development server and optimized build).
 - **Framework**: React (Functional Components + Hooks).
 - **Styling**: Tailwind CSS (Utility-first CSS).
+- **Responsive Design**: Mobile-First approach.
+    - Use `md:` and `lg:` prefixes for desktop overrides.
+    - Grid layouts: `grid-cols-1` for mobile, `md:grid-cols-2` or `lg:grid-cols-4` for larger screens.
 - **Routing**: `react-router-dom`.
 - **HTTP Client**: `axios` (configured with interceptors for JWT).
 - **State Management**: React Context (`AuthContext`) + Local Component State + Custom Hooks.
