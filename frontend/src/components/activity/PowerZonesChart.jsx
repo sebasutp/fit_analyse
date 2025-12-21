@@ -56,6 +56,7 @@ export function PowerZonesChart({ timeInZones }) {
 
     const options = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 display: false,
@@ -89,5 +90,9 @@ export function PowerZonesChart({ timeInZones }) {
         }
     };
 
-    return <Bar options={options} data={data} />;
+    return (
+        <div className="h-80 lg:h-96">
+            <Bar options={options} data={data} />
+        </div>
+    );
 }

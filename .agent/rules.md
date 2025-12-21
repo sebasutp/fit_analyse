@@ -18,3 +18,6 @@
 ## Execution Style
 - If a command fails due to a missing dependency, you are authorized to install it via `pip` or `npm` automatically.
 - Always check `./venv/bin/` for the local executable before asking to use a global one.
+
+## Documentation
+- Always check `frontend/design_doc.md` at the start of a frontend task and update it at the end to reflect any architectural changes.
