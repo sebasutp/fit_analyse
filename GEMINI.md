@@ -37,6 +37,7 @@ Make sure to use Python 3.10 or newer.
     DB_URL="sqlite:///database.db"
     TOKEN_TIMEOUT=30
     PORT=8082
+    SEARCH_MATCH_THRESHOLD=75 # Optional: Fuzzy match threshold (0-100), default 75
     ```
 4.  **Create the database:**
     ```sh
@@ -95,3 +96,12 @@ To run the frontend tests:
     ```sh
     npm test -- --run
     ```
+
+# Search Functionality
+
+The application uses fuzzy search (via `rapidfuzz`) to rank activities. This allows for:
+- **Partial Matching**: "zer" matches "Zermatt".
+- **Fuzzy Matching**: Handles misspellings (e.g., "Zermmat" matches "Zermatt").
+- **Order Independence**: "Ride Zermatt" matches "Zermatt Ride".
+
+The search threshold is configurable via the `SEARCH_MATCH_THRESHOLD` environment variable (default: 75). A higher value requires a closer match, while a lower value is more permissive.
