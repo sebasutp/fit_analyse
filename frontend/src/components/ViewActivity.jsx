@@ -108,11 +108,12 @@ function ViewActivity() {
       </div>
 
       {activity?.has_gps_data && (
-        <div>
+        <div className="w-full max-w-5xl">
           <a href={`../map/${activity.activity_base.activity_id}`}>
             <img
               src={`${import.meta.env.VITE_BACKEND_URL}/activity_map/${activity.activity_base.activity_id}`}
               alt="Activity Map"
+              className="w-full h-auto"
             />
           </a>
           <div className="flex flex-row items-center">
@@ -129,23 +130,31 @@ function ViewActivity() {
       )}
 
       {activity?.activity_analysis?.elev_summary && (
-        <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
+        <div className="w-full max-w-5xl mt-6">
+          <ElevCard elevSummary={activity.activity_analysis.elev_summary} />
+        </div>
       )}
       {activity?.activity_analysis?.power_summary && (
-        <PowerCard
-          powerSummary={activity.activity_analysis.power_summary}
-        />
+        <div className="w-full max-w-5xl mt-6">
+          <PowerCard
+            powerSummary={activity.activity_analysis.power_summary}
+          />
+        </div>
       )}
       {powerCurveData && powerCurveData.length > 0 && (
-        <PowerCurve powerCurveData={powerCurveData} />
+        <div className="w-full max-w-5xl mt-6">
+          <PowerCurve powerCurveData={powerCurveData} />
+        </div>
       )}
       {activity?.activity_analysis?.time_in_zones && (
-        <div className="w-full max-w-4xl mt-6 p-4 bg-white rounded-lg shadow dark:bg-gray-800">
+        <div className="w-full max-w-5xl mt-6 p-4 bg-white rounded-lg shadow dark:bg-gray-800">
           <PowerZonesChart timeInZones={activity.activity_analysis.time_in_zones} />
         </div>
       )}
       {activity?.laps && activity.laps.length > 1 && (
-        <LapsTable laps={activity.laps} />
+        <div className="w-full max-w-5xl mt-6">
+          <LapsTable laps={activity.laps} />
+        </div>
       )}
     </div>
   );

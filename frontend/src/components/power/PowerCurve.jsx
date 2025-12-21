@@ -97,7 +97,7 @@ const PowerCurve = ({ powerCurveData }) => {
     return (
         <div className="card-container">
             <h2 className="card-title">Power Curve</h2>
-            <div style={{ height: '300px' }}>
+            <div style={{ height: '450px' }}>
                 <Line options={options} data={data} />
             </div>
         </div>

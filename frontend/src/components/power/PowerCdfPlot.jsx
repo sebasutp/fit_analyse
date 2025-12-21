@@ -28,12 +28,13 @@ const PowerCdfPlot = ({ powerQuantiles }) => {
       },
     },
     responsive: true,
-    aspectRatio: 1,
+    maintainAspectRatio: false,
   };
 
   return (
-    <div>
-        <Line data={chartData} options={options}/>
+    // Fixed height container to be responsive but ensuring visibility
+    <div className="h-80 lg:h-96 w-full">
+      <Line data={chartData} options={options} />
     </div>
   );
 };

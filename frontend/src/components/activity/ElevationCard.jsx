@@ -2,7 +2,7 @@ import React from 'react';
 import Chart from "chart.js/auto";
 import { Line } from "react-chartjs-2";
 
-export function ElevCard({elevSummary}) {
+export function ElevCard({ elevSummary }) {
   const chartData = {
     labels: elevSummary.dist_series, // X-axis
     datasets: [
@@ -22,13 +22,13 @@ export function ElevCard({elevSummary}) {
       },
     },
     responsive: true,
-    aspectRatio: 1,
+    aspectRatio: 4,
   };
 
   return (
     <div className="card-container">
       <h2 className="card-title">Altitude</h2>
-      <Line data={chartData} options={options}/>
+      <Line data={chartData} options={options} />
     </div>
   );
 };
