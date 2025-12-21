@@ -22,13 +22,15 @@ export function ElevCard({ elevSummary }) {
       },
     },
     responsive: true,
-    aspectRatio: 4,
+    maintainAspectRatio: false,
   };
 
   return (
     <div className="card-container">
       <h2 className="card-title">Altitude</h2>
-      <Line data={chartData} options={options} />
+      <div className="h-80 lg:h-96">
+        <Line data={chartData} options={options} />
+      </div>
     </div>
   );
 };
