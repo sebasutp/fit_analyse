@@ -16,6 +16,8 @@ def get_activity_map(ride_df: pd.DataFrame, num_samples: int):
     if not 'position_lat' in ride_df.columns or not 'position_long' in ride_df.columns:
         return None
     df = ride_df.dropna(subset=['position_lat', 'position_long'])
+    if df.empty:
+        return None
     w = int(os.getenv("STATIC_MAP_W", "400"))
     h = int(os.getenv("STATIC_MAP_H", "300"))
     m = StaticMap(w, h, 10)
