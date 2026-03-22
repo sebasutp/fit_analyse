@@ -13,7 +13,7 @@ if not db_url:
 
 engine = create_engine(
     db_url if db_url else "sqlite:///database.db",
-    echo=True,
+    echo=os.getenv("DB_ECHO", "False").lower() == "true",
     connect_args=connect_args
 )
 

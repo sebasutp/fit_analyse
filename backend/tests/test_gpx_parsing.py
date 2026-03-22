@@ -106,3 +106,21 @@ def test_gpx_with_missing_elevation_time():
     assert pd.api.types.is_float_dtype(df['position_lat'])
     assert pd.api.types.is_float_dtype(df['position_long'])
     assert pd.api.types.is_float_dtype(df['altitude'])
+
+def test_gpx_with_no_timestamps():
+    gpx_string = """<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+  <trk>
+    <trkseg>
+      <trkpt lat="34.052235" lon="-118.243683"></trkpt>
+      <trkpt lat="34.052230" lon="-118.243680"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+"""
+    gpx_bytes = gpx_string.encode('utf-8')
+    df = parse_gpx_to_dataframe(gpx_bytes)
+    
+    assert len(df) == 2
+    assert df['timestamp'].isnull().all()
+    assert df['timestamp'].dtype == 'datetime64[ns, UTC]'
