@@ -23,5 +23,6 @@ def get_activity_raw_df(activity_db: model.ActivityTable):
 
 def get_activity_df(activity: model.ActivityTable):
     activity_df = get_activity_raw_df(activity)
-    activity_df.timestamp = activity_df.timestamp.apply(lambda x: x.timestamp() if x else None)
+    # Use pd.isna to handle NaT values gracefully
+    activity_df.timestamp = activity_df.timestamp.apply(lambda x: x.timestamp() if not pd.isna(x) else None)
     return activity_df

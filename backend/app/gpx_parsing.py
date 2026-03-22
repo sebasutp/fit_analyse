@@ -61,6 +61,9 @@ def parse_gpx_to_dataframe(gpx_bytes: bytes) -> pd.DataFrame:
 
     df = pd.DataFrame(data)
     
+    # Ensure timestamp is datetime-like before accessing .dt
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
     # Ensure timestamp is in UTC if it's timezone aware, or make it timezone aware (UTC)
     if df['timestamp'].dt.tz is not None:
         df['timestamp'] = df['timestamp'].dt.tz_convert('UTC')
