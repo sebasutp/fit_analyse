@@ -41,6 +41,14 @@ function ActivityMetricsGrid({ activityAnalysis }) {
                     unit="bpm"
                 />
             )}
+            {activityAnalysis.average_temperature != null && (
+                <Metric
+                    name="Temperature"
+                    value={activityAnalysis.average_temperature}
+                    unit="°C"
+                    decimalPlaces={1}
+                />
+            )}
         </div>
     );
 }

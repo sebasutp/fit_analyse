@@ -43,6 +43,7 @@ var lapFields = []string{
 	"total_descent",
 	"avg_heart_rate",
 	"max_heart_rate",
+	"avg_temperature",
 }
 
 // --- getArrowType function (no changes) ---
@@ -56,7 +57,7 @@ func getArrowType(fieldName string) arrow.DataType {
 		return arrow.PrimitiveTypes.Uint32
 	case "power", "speed", "altitude", "avg_speed", "max_speed", "avg_power", "max_power", "total_ascent", "total_descent":
 		return arrow.PrimitiveTypes.Uint16
-	case "temperature":
+	case "temperature", "avg_temperature":
 		return arrow.PrimitiveTypes.Int8
 	case "heart_rate", "avg_heart_rate", "max_heart_rate":
 		return arrow.PrimitiveTypes.Uint8
@@ -213,6 +214,8 @@ func processLaps(activity *fit.ActivityFile, out io.Writer) error {
 			builders[i] = array.NewTimestampBuilder(allocator, field.Type.(*arrow.TimestampType))
 		case arrow.UINT8:
 			builders[i] = array.NewUint8Builder(allocator)
+		case arrow.INT8:
+			builders[i] = array.NewInt8Builder(allocator)
 		case arrow.UINT32:
 			builders[i] = array.NewUint32Builder(allocator)
 		case arrow.UINT16:
@@ -249,6 +252,10 @@ func processLaps(activity *fit.ActivityFile, out io.Writer) error {
 					b.Append(lap.AvgHeartRate)
 				case "max_heart_rate":
 					b.Append(lap.MaxHeartRate)
+				}
+			case *array.Int8Builder:
+				if fieldName == "avg_temperature" {
+					b.Append(lap.AvgTemperature)
 				}
 			case *array.Uint16Builder:
 				switch fieldName {

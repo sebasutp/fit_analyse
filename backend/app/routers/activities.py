@@ -63,6 +63,7 @@ def _trigger_activity_recomputation_if_needed(activity: model.ActivityTable, ses
         activity.distance = summary.distance if summary.distance is not None else 0
         activity.active_time = summary.active_time if summary.active_time is not None else 0
         activity.elevation_gain = summary.elevation_gain if summary.elevation_gain is not None else 0
+        activity.average_temperature = summary.average_temperature
 
         activity.fit_file_parsed_at = datetime.now(datetime.now().astimezone().tzinfo)
 
@@ -215,6 +216,7 @@ async def upload_activity(
         max_power=max_power,
         average_power=average_power,
         total_work=total_work,
+        average_temperature=summary.average_temperature,
         val_hash=file_hash
     )
 
@@ -324,7 +326,7 @@ async def get_activity_raw_columns(
     else:
         column_list = [
             "timestamp", "power", "distance", "speed", "altitude",
-            "position_lat", "position_long"]
+            "position_lat", "position_long", "temperature", "heart_rate"]
     available_cols = set(activity_df.columns)
     activity_dict = {col: activity_dict[col] for col in column_list if col in available_cols}
     serialized_data = msgpack.packb(activity_dict)
@@ -333,6 +335,53 @@ async def get_activity_raw_columns(
         yield serialized_data
 
     return StreamingResponse(generate_data(), media_type="application/x-msgpack")
+
+@router.get("/activity/{activity_id}/processed_series")
+async def get_activity_processed_series(
+    *,
+    session: Session = Depends(get_db_session),
+    activity_id: str):
+    """
+    Returns time-summarized and smoothed data for charting.
+    Resamples to 1Hz, applies smoothing, and then downsamples to a target point limit.
+    """
+    activity_df = activity_crud.fetch_activity_df(activity_id, session)
+    if activity_df is None or activity_df.empty:
+        raise HTTPException(status_code=404, detail="Activity data not found")
+
+    # 1. Smoothing Configuration
+    metrics_config = {
+        'power': 30,
+        'heart_rate': 10,
+        'temperature': 10
+    }
+    
+    # 2. Resample and Smooth
+    df_processed = data_processing.prepare_processed_series(activity_df, metrics_config)
+    
+    # 3. Downsample for frontend performance
+    try:
+        limit = int(os.getenv("CHART_POINTS_LIMIT", 1000))
+    except (ValueError, TypeError):
+        limit = 1000
+
+    df_downsampled = data_processing.downsample_dataframe(df_processed, target_points=limit)
+    
+    # 4. Response Formatting
+    # Ensure time is numeric seconds since epoch
+    if not pd.api.types.is_datetime64_any_dtype(df_downsampled['timestamp']):
+        df_downsampled['timestamp'] = pd.to_datetime(df_downsampled['timestamp'])
+    
+    df_downsampled['time'] = df_downsampled['timestamp'].apply(lambda x: x.timestamp() if not pd.isna(x) else None)
+    
+    # Select columns and rename
+    available_metrics = [m for m in metrics_config.keys() if f"{m}_smoothed" in df_downsampled.columns]
+    rename_map = {f"{m}_smoothed": m for m in available_metrics}
+    
+    result_df = df_downsampled[['time'] + [f"{m}_smoothed" for m in available_metrics]].rename(columns=rename_map)
+    result_df = result_df.fillna(0) # Final safety for JSON
+
+    return result_df.to_dict(orient="records")
 
 @router.get("/activities", response_model=list[model.ActivityBase])
 async def get_activities(

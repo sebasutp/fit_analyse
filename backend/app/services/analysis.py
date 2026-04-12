@@ -52,7 +52,8 @@ def compute_lap_metrics(lap_data_row: pd.Series, activity_df: pd.DataFrame) -> m
         max_power=lap_data_row.get('max_power'),
         power_summary=power_summary_for_lap,
         avg_heart_rate=lap_data_row.get('avg_heart_rate'),
-        max_heart_rate=lap_data_row.get('max_heart_rate')
+        max_heart_rate=lap_data_row.get('max_heart_rate'),
+        average_temperature=lap_data_row.get('avg_temperature')
     )
     return lap_metrics_obj
 
@@ -84,6 +85,12 @@ def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200, user
         if not pd.isna(max_hr_tmp):
             max_hr = int(max_hr_tmp)
 
+    avg_temp = None
+    if 'temperature' in ride_df.columns and not ride_df['temperature'].dropna().empty:
+        avg_temp_tmp = ride_df['temperature'].mean()
+        if not pd.isna(avg_temp_tmp):
+            avg_temp = float(avg_temp_tmp)
+
     summary = model.ActivitySummary(
         distance=distance_km,
         total_elapsed_time=actual_elapsed_time_seconds,
@@ -91,7 +98,8 @@ def compute_activity_summary(ride_df: pd.DataFrame, num_samples: int = 200, user
         elevation_gain=elevation_gain_val,
         average_speed=avg_speed_kmh,
         average_heartrate=avg_hr,
-        max_heartrate=max_hr
+        max_heartrate=max_hr,
+        average_temperature=avg_temp
     )
 
     summary.power_summary = power.compute_power_summary(ride_df)

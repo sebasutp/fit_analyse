@@ -72,6 +72,7 @@ function LapsTable({ laps }) {
     { key: 'median_power', label: 'Median Power (W)' },
     { key: 'avg_heart_rate', label: 'Avg HR (bpm)' },
     { key: 'max_heart_rate', label: 'Max HR (bpm)' },
+    { key: 'average_temperature', label: 'Temp (°C)' },
     { key: 'total_ascent', label: 'Ascent (m)' },
     { key: 'total_descent', label: 'Descent (m)' },
   ];
@@ -169,6 +170,11 @@ function LapsTable({ laps }) {
                   {formatNumber(lap.max_heart_rate, 0)}
                 </td>
 
+                {/* Avg Temperature (°C) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.average_temperature, 1)}
+                </td>
+
                 {/* Ascent (m) - hidden on small screens */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
                   {formatNumber(lap.total_ascent, 0)}
@@ -192,6 +198,7 @@ function LapsTable({ laps }) {
                       <div><strong>Max Speed:</strong> {formatNumber(lap.max_speed)} km/h</div>
                       {lap.avg_heart_rate != null && <div><strong>Average HR:</strong> {formatNumber(lap.avg_heart_rate, 0)} bpm</div>}
                       {lap.max_heart_rate != null && <div><strong>Max HR:</strong> {formatNumber(lap.max_heart_rate, 0)} bpm</div>}
+                      {lap.average_temperature != null && <div><strong>Temperature:</strong> {formatNumber(lap.average_temperature, 1)} °C</div>}
                       <div><strong>Ascent:</strong> {formatNumber(lap.total_ascent, 0)} m</div>
                       <div><strong>Descent:</strong> {formatNumber(lap.total_descent, 0)} m</div>
                     </div>
