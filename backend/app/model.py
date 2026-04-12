@@ -94,6 +94,8 @@ class LapMetrics(BaseModel):
     total_descent: Optional[float] = None
     max_power: Optional[float] = None # Value from Go data
     power_summary: Optional[PowerSummary] = None # Contains recalculated avg_power, median_power, etc.
+    avg_heart_rate: Optional[float] = None
+    max_heart_rate: Optional[float] = None
 
 class ElevationSummary(BaseModel):
     lowest: float
@@ -124,6 +126,8 @@ class ActivitySummary(BaseModel):
     power_summary: Optional[PowerSummary] = None
     elev_summary: Optional[ElevationSummary] = None
     time_in_zones: Optional[List[float]] = None
+    average_heartrate: Optional[float] = None
+    max_heartrate: Optional[float] = None
 
 class ActivityBase(SQLModel):
     activity_id: str = Field(...)
@@ -142,6 +146,8 @@ class ActivityBase(SQLModel):
     max_power: Optional[int] = Field(default=None)
     average_power: Optional[int] = Field(default=None)
     total_work: Optional[int] = Field(default=None)
+    average_heartrate: Optional[int] = Field(default=None)
+    max_heartrate: Optional[int] = Field(default=None)
     val_hash: Optional[str] = Field(default=None, index=True)
 
 class ActivityResponse(BaseModel):

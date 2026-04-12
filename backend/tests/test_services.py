@@ -112,6 +112,26 @@ class TestServices(unittest.TestCase):
         self.assertAlmostEqual(summary.average_speed, (11.0 / 6.0) * 3.6)
         self.assertAlmostEqual(summary.elevation_gain, 6.0)
         self.assertIsNone(summary.power_summary)
+        self.assertIsNone(summary.average_heartrate)
+        self.assertIsNone(summary.max_heartrate)
+
+    def test_compute_activity_summary_heart_rate(self):
+        df = pd.DataFrame({
+            'distance': [0, 100, 200, 300, 400, 500],
+            'timestamp': [datetime(2023, 1, 1, 10, 0, 0),
+                          datetime(2023, 1, 1, 10, 0, 1),
+                          datetime(2023, 1, 1, 10, 0, 2),
+                          datetime(2023, 1, 1, 10, 0, 3),
+                          datetime(2023, 1, 1, 10, 0, 4),
+                          datetime(2023, 1, 1, 10, 0, 5)
+            ],
+            'speed': [1.0, 2.0, 3.0, 2.0, 1.0, 2.0],
+            'altitude': [10, 12, 15, 14, 16, 13],
+            'heart_rate': [120, 130, 140, 135, None, 145]
+        })
+        summary = analysis.compute_activity_summary(df)
+        self.assertEqual(summary.average_heartrate, 134)
+        self.assertEqual(summary.max_heartrate, 145)
 
     def test_get_activity_raw_df(self):
       # Create a sample DataFrame
