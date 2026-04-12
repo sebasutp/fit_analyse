@@ -10,6 +10,7 @@ import LapsTable from './activity/LapsTable';
 import ActivityHeader from './activity/ActivityHeader';
 import ActivityEditForm from './activity/ActivityEditForm';
 import ActivityMetricsGrid from './activity/ActivityMetricsGrid';
+import TimeSeriesView from './activity/TimeSeriesView';
 import { useActivity } from '../hooks/useActivity';
 import loadingImg from '../assets/loading.gif';
 
@@ -128,6 +129,10 @@ function ViewActivity() {
           </div>
         </div>
       )}
+
+      <div className="w-full max-w-5xl mt-6">
+        <TimeSeriesView activityId={id} />
+      </div>
 
       {activity?.activity_analysis?.elev_summary && (
         <div className="w-full max-w-5xl mt-6">

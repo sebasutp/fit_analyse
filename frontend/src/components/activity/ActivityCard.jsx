@@ -25,6 +25,7 @@ export function ActivityCard({ activity }) {
         <Metric name="Distance" value={activity.distance} unit="km" />
         <Metric name="Elev. Gain" value={activity.elevation_gain} unit="m" />
         <MetricBox name="Time" value={getElapsedTime(activity.active_time)} />
+        {activity.average_heartrate && <Metric name="Avg HR" value={activity.average_heartrate} unit="bpm" />}
       </div>
       {activity.tags && activity.tags.length > 0 && (
         <div style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>

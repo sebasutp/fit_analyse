@@ -70,6 +70,9 @@ function LapsTable({ laps }) {
     { key: 'avg_power', label: 'Avg Power (W)' },
     { key: 'max_power', label: 'Max Power (W)' },
     { key: 'median_power', label: 'Median Power (W)' },
+    { key: 'avg_heart_rate', label: 'Avg HR (bpm)' },
+    { key: 'max_heart_rate', label: 'Max HR (bpm)' },
+    { key: 'average_temperature', label: 'Temp (°C)' },
     { key: 'total_ascent', label: 'Ascent (m)' },
     { key: 'total_descent', label: 'Descent (m)' },
   ];
@@ -157,6 +160,21 @@ function LapsTable({ laps }) {
                   {formatNumber(lap.power_summary?.median_power, 0)}
                 </td>
 
+                {/* Avg Heart Rate (bpm) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.avg_heart_rate, 0)}
+                </td>
+
+                {/* Max Heart Rate (bpm) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.max_heart_rate, 0)}
+                </td>
+
+                {/* Avg Temperature (°C) - hidden on small screens */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
+                  {formatNumber(lap.average_temperature, 1)}
+                </td>
+
                 {/* Ascent (m) - hidden on small screens */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 hidden sm:table-cell">
                   {formatNumber(lap.total_ascent, 0)}
@@ -172,11 +190,15 @@ function LapsTable({ laps }) {
                   <td colSpan={tableHeaders.length} className="p-4 text-sm text-gray-700 dark:text-gray-200">
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 items-baseline">
                       <div><strong>Elapsed Time:</strong> {formatDuration(lap.total_elapsed_time)}</div>
-                      <div><strong>Average Power:</strong> {formatNumber(lap.power_summary.average_power, 0)} W</div>
-                      <div><strong>Median Power:</strong> {formatNumber(lap.power_summary.median_power, 0)} W</div>
+                      <div><strong>Average Power:</strong> {formatNumber(lap.power_summary?.average_power, 0)} W</div>
+                      <div><strong>Median Power:</strong> {formatNumber(lap.power_summary?.median_power, 0)} W</div>
                       <div><strong>Max Power:</strong> {formatNumber(lap.max_power, 0)} W</div>
-                      <div><strong>Total work:</strong> {formatNumber(lap.power_summary.total_work, 0)} J</div>
+                      <div><strong>Total work:</strong> {formatNumber(lap.power_summary?.total_work, 0)} J</div>
+                      <div><strong>Full Speed Avg:</strong> {formatNumber(lap.avg_speed)} km/h</div>
                       <div><strong>Max Speed:</strong> {formatNumber(lap.max_speed)} km/h</div>
+                      {lap.avg_heart_rate != null && <div><strong>Average HR:</strong> {formatNumber(lap.avg_heart_rate, 0)} bpm</div>}
+                      {lap.max_heart_rate != null && <div><strong>Max HR:</strong> {formatNumber(lap.max_heart_rate, 0)} bpm</div>}
+                      {lap.average_temperature != null && <div><strong>Temperature:</strong> {formatNumber(lap.average_temperature, 1)} °C</div>}
                       <div><strong>Ascent:</strong> {formatNumber(lap.total_ascent, 0)} m</div>
                       <div><strong>Descent:</strong> {formatNumber(lap.total_descent, 0)} m</div>
                     </div>

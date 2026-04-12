@@ -26,6 +26,7 @@ var recordFields = []string{
 	"power",
 	"temperature",
 	"altitude",
+	"heart_rate",
 }
 
 var lapFields = []string{
@@ -40,6 +41,9 @@ var lapFields = []string{
 	"max_power",
 	"total_ascent",
 	"total_descent",
+	"avg_heart_rate",
+	"max_heart_rate",
+	"avg_temperature",
 }
 
 // --- getArrowType function (no changes) ---
@@ -53,8 +57,10 @@ func getArrowType(fieldName string) arrow.DataType {
 		return arrow.PrimitiveTypes.Uint32
 	case "power", "speed", "altitude", "avg_speed", "max_speed", "avg_power", "max_power", "total_ascent", "total_descent":
 		return arrow.PrimitiveTypes.Uint16
-	case "temperature":
+	case "temperature", "avg_temperature":
 		return arrow.PrimitiveTypes.Int8
+	case "heart_rate", "avg_heart_rate", "max_heart_rate":
+		return arrow.PrimitiveTypes.Uint8
 	default:
 		// MODIFIED: Changed panic to an error for graceful failure
 		panic(fmt.Sprintf("Unsupported field name: %s", fieldName))
@@ -88,6 +94,8 @@ func processRecords(activity *fit.ActivityFile, out io.Writer) error {
 			builders[i] = array.NewInt32Builder(allocator)
 		case arrow.INT8:
 			builders[i] = array.NewInt8Builder(allocator)
+		case arrow.UINT8:
+			builders[i] = array.NewUint8Builder(allocator)
 		case arrow.UINT16:
 			builders[i] = array.NewUint16Builder(allocator)
 		case arrow.UINT32:
@@ -127,6 +135,10 @@ func processRecords(activity *fit.ActivityFile, out io.Writer) error {
 			case *array.Int8Builder:
 				if fieldName == "temperature" {
 					b.Append(record.Temperature)
+				}
+			case *array.Uint8Builder:
+				if fieldName == "heart_rate" {
+					b.Append(record.HeartRate)
 				}
 			case *array.Uint16Builder:
 				switch fieldName {
@@ -200,6 +212,10 @@ func processLaps(activity *fit.ActivityFile, out io.Writer) error {
 		switch field.Type.ID() {
 		case arrow.TIMESTAMP:
 			builders[i] = array.NewTimestampBuilder(allocator, field.Type.(*arrow.TimestampType))
+		case arrow.UINT8:
+			builders[i] = array.NewUint8Builder(allocator)
+		case arrow.INT8:
+			builders[i] = array.NewInt8Builder(allocator)
 		case arrow.UINT32:
 			builders[i] = array.NewUint32Builder(allocator)
 		case arrow.UINT16:
@@ -229,6 +245,17 @@ func processLaps(activity *fit.ActivityFile, out io.Writer) error {
 					b.Append(lap.TotalElapsedTime)
 				case "total_timer_time":
 					b.Append(lap.TotalTimerTime)
+				}
+			case *array.Uint8Builder:
+				switch fieldName {
+				case "avg_heart_rate":
+					b.Append(lap.AvgHeartRate)
+				case "max_heart_rate":
+					b.Append(lap.MaxHeartRate)
+				}
+			case *array.Int8Builder:
+				if fieldName == "avg_temperature" {
+					b.Append(lap.AvgTemperature)
 				}
 			case *array.Uint16Builder:
 				switch fieldName {
