@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 from app import model, fit_parsing, gpx_parsing
 from app.auth import auth_handler, crypto
 from app.database import get_db_session
-from app.services import analysis, maps, data_processing, activity_crud, stats, power
+from app.services import analysis, maps, data_processing, activity_crud, stats, power, utils
 from dateutil import parser as date_parser
 
 logger = logging.getLogger('uvicorn.error')
@@ -264,7 +264,9 @@ async def get_activity_endpoint(
     user_zones = owner.power_zones if owner else None
 
     activity_response = analysis.get_activity_response(activity, include_raw_data=False, user_zones=user_zones)
-    return activity_response
+    # Convert to dict and sanitize for NaN/Inf (JSON requires null instead)
+    response_dict = activity_response.model_dump()
+    return utils.sanitize_nan(response_dict)
 
 @router.get("/activity/{activity_id}/power-curve", response_model=list[dict[str, float]])
 async def get_activity_power_curve(

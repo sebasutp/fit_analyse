@@ -99,10 +99,10 @@ class LapMetrics(BaseModel):
     average_temperature: Optional[float] = None
 
 class ElevationSummary(BaseModel):
-    lowest: float
-    highest: float
-    elev_series: Sequence[float]
-    dist_series: Sequence[float]
+    lowest: Optional[float] = None
+    highest: Optional[float] = None
+    elev_series: Sequence[Optional[float]]
+    dist_series: Sequence[Optional[float]]
 
 class Climb(BaseModel):
     from_ix: int
@@ -145,12 +145,12 @@ class ActivityBase(SQLModel):
     tags: Optional[List[str]] = Field(sa_column=Column(JSON))
     
     # New Stats Fields
-    max_power: Optional[int] = Field(default=None)
-    average_power: Optional[int] = Field(default=None)
-    total_work: Optional[int] = Field(default=None)
-    average_heartrate: Optional[int] = Field(default=None)
-    max_heartrate: Optional[int] = Field(default=None)
-    average_temperature: Optional[int] = Field(default=None)
+    max_power: Optional[float] = Field(default=None)
+    average_power: Optional[float] = Field(default=None)
+    total_work: Optional[float] = Field(default=None)
+    average_heartrate: Optional[float] = Field(default=None)
+    max_heartrate: Optional[float] = Field(default=None)
+    average_temperature: Optional[float] = Field(default=None)
     val_hash: Optional[str] = Field(default=None, index=True)
 
 class ActivityResponse(BaseModel):
