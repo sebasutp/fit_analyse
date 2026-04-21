@@ -1,18 +1,25 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { GetToken, Logout } from './Utils';
 
 function NavMenu() {
     const location = useLocation();
-    const { isAuthenticated, logout } = useAuth();
+    const navigate = useNavigate();
+    const token = GetToken();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const handleLogout = () => {
+        Logout();
+        navigate('/login');
+    };
 
     // Don't show nav on login page
     if (location.pathname === '/login') {
         return null;
     }
 
-    if (!isAuthenticated) {
+    // Optionally check for token to hide if not logged in (though protected routes handle redirect)
+    if (!token) {
         return null;
     }
 
@@ -66,7 +73,7 @@ function NavMenu() {
                         </li>
                         <li>
                             <button
-                                onClick={logout}
+                                onClick={handleLogout}
                                 className="block w-full text-left py-2 px-3 text-gray-900 rounded hover:bg-red-50 md:hover:bg-transparent md:border-0 md:hover:text-red-600 md:p-0 dark:text-white md:dark:hover:text-red-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent transition-colors duration-200"
                             >
                                 Logout

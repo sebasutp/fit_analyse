@@ -17,20 +17,15 @@ vi.mock('react-chartjs-2', () => ({
 global.fetch = vi.fn().mockImplementation(() =>
     Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ auth_provider: 'local' }),
+        json: () => Promise.resolve({ external_auth_enabled: false }),
     })
 );
-
-
-import { AuthProvider } from './contexts/AuthContext';
 
 describe('App Component Smoke Test', () => {
     it('renders without crashing', () => {
         render(
             <MemoryRouter>
-                <AuthProvider>
-                    <App />
-                </AuthProvider>
+                <App />
             </MemoryRouter>
         );
         // If it crashes, this line is never reached.

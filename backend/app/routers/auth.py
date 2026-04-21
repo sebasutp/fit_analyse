@@ -1,7 +1,7 @@
 import os
 from datetime import timedelta
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 
@@ -14,63 +14,77 @@ router = APIRouter()
 @router.get("/config")
 async def get_auth_config():
     """
-    Returns the current authentication provider configuration.
+    Returns the current authentication configuration.
     """
-    auth_provider = os.getenv("AUTH_PROVIDER", "local")
-    return {"auth_provider": auth_provider}
+    return {
+        "external_auth_enabled": bool(os.getenv("EXTERNAL_AUTH_ENDPOINT")),
+    }
 
 
 @router.post("/exchange-token")
 async def exchange_token(
-    token_data: dict,
+    request: Request,
+    token_data: dict = None,
     session: Session = Depends(get_db_session)
 ):
     """
-    Exchanges an external auth token for a local session token.
+    Exchanges an external auth token or session cookies for a local session token.
     """
     import httpx
+    import secrets
     
-    external_token = token_data.get("external_token")
-    if not external_token:
-        raise HTTPException(status_code=400, detail="Missing external_token")
+    external_auth_endpoint = os.getenv("EXTERNAL_AUTH_ENDPOINT")
+    if not external_auth_endpoint:
+        raise HTTPException(status_code=501, detail="External auth not configured")
 
-    # Call auth_service to validate token and get user info
-    auth_service_url = os.getenv("AUTH_SERVICE_URL", "http://localhost:8000")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(cookies=request.cookies) as client:
         try:
+            # We forward cookies from the browser to the external auth endpoint
+            # If an external_token was also provided in the body, we can include it as well
+            headers = {}
+            if token_data and token_data.get("external_token"):
+                headers["Authorization"] = f"Bearer {token_data.get('external_token')}"
+            
             resp = await client.get(
-                f"{auth_service_url}/api/v1/auth/me",
-                headers={"Authorization": f"Bearer {external_token}"}
+                external_auth_endpoint,
+                headers=headers
             )
+            
             if resp.status_code != 200:
-                raise HTTPException(status_code=401, detail="Invalid external token")
-            user_info = resp.json()
+                raise HTTPException(status_code=401, detail="External authentication failed")
+            
+            # The user provided the UserPublic format
+            user_info = model.UserPublic(**resp.json())
+        except HTTPException:
+             raise
         except httpx.RequestError:
-             raise HTTPException(status_code=503, detail="Auth service unavailable")
+             raise HTTPException(status_code=503, detail="External auth service unavailable")
+        except Exception as e:
+             raise HTTPException(status_code=422, detail=f"Invalid response format from external auth: {str(e)}")
 
-    email = user_info.get("email")
+    # Verify scope
+    required_scope = os.getenv("EXTERNAL_AUTH_REQ_SCOPE")
+    if required_scope:
+        if not user_info.scopes or required_scope not in user_info.scopes:
+            raise HTTPException(status_code=403, detail="Missing required scope")
+
+    email = user_info.email
     if not email:
         raise HTTPException(status_code=400, detail="External user has no email")
 
     # Find or create user
-    # Note: We need to access the User model from app.model
-    # The existing code imports 'app.model' as 'model'
     q = select(model.User).where(model.User.email == email)
     db_user = session.exec(q).first()
 
     if not db_user:
-        # Create new user
-        # Password is not used for external auth, but we might need a dummy one if the model requires it
-        # Model UserLogin requires password. UserCreate inherits from UserLogin.
-        # We'll set a random unusable password.
-        import secrets
+        # Create new user with a random password
         random_password = secrets.token_urlsafe(32)
         hashed_password = auth_handler.crypto.get_password_hash(random_password)
         
         db_user = model.User(
             email=email,
             password=hashed_password,
-            fullname=user_info.get("name") or email.split("@")[0]
+            fullname=user_info.name or email.split("@")[0]
         )
         session.add(db_user)
         session.commit()
@@ -89,10 +103,6 @@ async def login(
     """
     Login API to authenticate a user and generate an access token.
     """
-    # ... existing login implementation ...
-    if os.getenv("AUTH_PROVIDER") == "external":
-         raise HTTPException(status_code=403, detail="Local login disabled")
-
     user = model.UserLogin(email=form_data.username,
                         password=form_data.password)
     db_user = auth_handler.check_and_get_user(user, session)

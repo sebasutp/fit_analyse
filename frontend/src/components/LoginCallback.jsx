@@ -1,57 +1,61 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 
 function LoginCallback() {
+    const [error, setError] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
-    const { loginWithExternalToken } = useAuth();
 
     useEffect(() => {
         const handleCallback = async () => {
-            // 1. Parse token from URL fragment (hash) OR query params
-            const hash = location.hash.substring(1); // Remove leading '#'
-            const hashParams = new URLSearchParams(hash);
-            const searchParams = new URLSearchParams(location.search);
+            const params = new URLSearchParams(location.search);
+            const hashParams = new URLSearchParams(location.hash.substring(1));
+            
+            const token = params.get('access_token') || params.get('token') || hashParams.get('access_token') || hashParams.get('token');
 
-            // Prioritize access_token, fallback to token (compatibility)
-            const externalToken = hashParams.get('access_token') || hashParams.get('token') || searchParams.get('access_token') || searchParams.get('token');
-            const error = hashParams.get('error') || searchParams.get('error');
-
-            if (error) {
-                console.error('Auth error:', error);
-                navigate('/login?error=' + encodeURIComponent(error));
-                return;
-            }
-
-            if (!externalToken) {
-                console.error('No access token found');
-                navigate('/login?error=no_token');
-                return;
-            }
-
-            // 2. Exchange external token for local token via Context
             try {
-                await loginWithExternalToken(externalToken);
-                // 3. Redirect
-                console.log('Login successful via external auth');
-                navigate('/');
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exchange-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ external_token: token }),
+                    credentials: 'include', // Important to send cookies to the backend
+                });
 
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || 'Token exchange failed');
+                }
+
+                const data = await response.json();
+                localStorage.setItem('token', data.access_token);
+                navigate('/');
             } catch (err) {
-                console.error('Exchange error:', err);
-                navigate('/login?error=' + encodeURIComponent(err.message));
+                setError(err.message);
+                setTimeout(() => navigate('/login'), 3000);
             }
         };
 
         handleCallback();
-    }, [location, navigate, loginWithExternalToken]);
+    }, [location, navigate]);
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+                <div className="p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-red-200 dark:border-red-900">
+                    <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Authentication Error</h2>
+                    <p className="text-gray-700 dark:text-gray-300">{error}</p>
+                    <p className="text-sm text-gray-500 mt-4">Redirecting back to login...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-            <div className="text-center">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Authenticating...</h2>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-            </div>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-xl font-semibold text-gray-700 dark:text-gray-300">Completing login...</p>
         </div>
     );
 }
