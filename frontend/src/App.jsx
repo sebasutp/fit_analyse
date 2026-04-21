@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Login from './components/Login.jsx'
+import LoginCallback from './components/LoginCallback.jsx';
 import ViewActivity from './components/ViewActivity.jsx';
 import NewActivity from './components/NewActivity.jsx';
 import BatchUpload from './components/BatchUpload.jsx';
@@ -7,7 +8,7 @@ import Activities from './components/Activities.jsx'
 import RouteMap from './components/RouteMap.jsx';
 import Profile from './components/profile/Profile.jsx';
 import NavMenu from './components/NavMenu.jsx';
-import LoginCallback from './components/LoginCallback.jsx';
+// import NavMenu from './components/NavMenu.jsx';
 
 function App() {
 

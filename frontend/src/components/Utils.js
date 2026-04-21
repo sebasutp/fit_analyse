@@ -11,6 +11,10 @@ export function ParseBackendResponse(response, navigate) {
   return response.json();
 }
 
+export function Logout() {
+    localStorage.removeItem('token');
+}
+
 export function GetToken() {
     return localStorage.getItem('token');
 }

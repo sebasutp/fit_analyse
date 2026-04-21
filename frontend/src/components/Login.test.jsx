@@ -1,40 +1,48 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Login from './Login';
-import * as AuthContextModule from '../contexts/AuthContext';
 
-// Mocks for useAuth
-const mockLogin = vi.fn();
-const mockUseAuth = vi.fn();
+// Mock the global fetch function
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ access_token: 'fake_token' }),
+  })
+);
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => mockUseAuth(),
-}));
-
+// Mock localStorage
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: (key) => store[key] || null,
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 describe('Login component', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Default mock return
-    mockUseAuth.mockReturnValue({
-      authProviderConfig: 'loading',
-      login: mockLogin,
-      isLoading: false
-    });
-  });
-
-  it('renders local login form when auth_provider is local', async () => {
-    mockUseAuth.mockReturnValue({
-      authProviderConfig: 'local',
-      login: mockLogin,
-      isLoading: false
-    });
-
-    // Mock fetch for local login call
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ access_token: 'fake_token' }),
+  it('submits the form, gets a token, and stores it in localStorage', async () => {
+    // Mock first call to /config then second to /token
+    global.fetch = vi.fn().mockImplementation((url) => {
+        if (url.includes('/config')) {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ external_auth_enabled: false }),
+            });
+        }
+        if (url.includes('/token')) {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ access_token: 'fake_token' }),
+            });
+        }
+        return Promise.reject(new Error(`Unhandled fetch to ${url}`));
     });
 
     render(
@@ -43,33 +51,28 @@ describe('Login component', () => {
       </MemoryRouter>
     );
 
-    const usernameInput = screen.getByLabelText(/username/i);
+    // Wait for the initial config fetch to complete
+    await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+    global.fetch.mockClear();
+
+    // Find the input fields and the button
+    const usernameInput = screen.getByLabelText(/email address/i);
     const passwordInput = screen.getByLabelText(/password/i);
     const signInButton = screen.getByRole('button', { name: /sign in/i });
 
-    fireEvent.change(usernameInput, { target: { value: 'testuser' } });
+    // Simulate user input
+    fireEvent.change(usernameInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(signInButton);
 
+    // Simulate form submission
+    const form = usernameInput.closest('form');
+    fireEvent.submit(form);
+
+    // Assert that the token is stored in localStorage
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith('fake_token');
+        expect(localStorage.getItem('token')).toBe('fake_token');
     });
-  });
-
-  it('renders external login button when auth_provider is external', async () => {
-    mockUseAuth.mockReturnValue({
-      authProviderConfig: 'external',
-      login: mockLogin,
-      isLoading: false
-    });
-
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>
-    );
-
-    expect(screen.getByText(/Go to Login Page/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/username/i)).toBeNull();
   });
 });

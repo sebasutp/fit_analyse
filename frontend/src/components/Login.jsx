@@ -1,23 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
-  const { authProviderConfig, login, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [externalAuthEnabled, setExternalAuthEnabled] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check query params for errors from redirects
   useEffect(() => {
+    // Fetch auth config
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/config`);
+        if (response.ok) {
+          const data = await response.json();
+          setExternalAuthEnabled(data.external_auth_enabled);
+        }
+      } catch (err) {
+        console.error("Failed to fetch auth config", err);
+      }
+    };
+    fetchConfig();
+
+    // Check query params for errors
     const params = new URLSearchParams(location.search);
     const errorParam = params.get('error');
     if (errorParam) {
-      if (errorParam === 'no_token') setError('Authentication failed: No token received.');
-      else setError(decodeURIComponent(errorParam));
+      setError(decodeURIComponent(errorParam));
     }
   }, [location]);
 
@@ -27,7 +39,7 @@ function Login() {
     setLoading(true);
 
     const formData = new URLSearchParams();
-    formData.append('username', email); // FastAPI OAuth2PasswordRequestForm expects username
+    formData.append('username', email);
     formData.append('password', password);
 
     try {
@@ -45,7 +57,7 @@ function Login() {
       }
 
       const data = await response.json();
-      login(data.access_token);
+      localStorage.setItem('token', data.access_token);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -55,82 +67,87 @@ function Login() {
   };
 
   const handleExternalLogin = () => {
-    // Redirect to external Auth Service Login UI
-    const authServiceUiUrl = import.meta.env.VITE_AUTH_SERVICE_UI_URL;
-    // Point redirect_uri to our new Callback route
+    const externalLoginUrl = import.meta.env.VITE_EXTERNAL_LOGIN_URL;
     const redirectUri = `${window.location.origin}/login/callback`;
-
-    window.location.href = `${authServiceUiUrl}/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = `${externalLoginUrl}?redirect_url=${encodeURIComponent(redirectUri)}`;
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
-        <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <section className="bg-gray-50 dark:bg-gray-900">
-      <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
-        <a href="#" className="flex items-center mb-6 text-2xl font-semibold text-gray-900 dark:text-white">
-          FitAnalyse
-        </a>
-        <div className="w-full bg-white rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
-          <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
-            <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
-              Sign in to your account
+    <section className="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="p-8">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+              FitAnalyse
             </h1>
-            {error && (
-              <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-900 dark:text-red-400" role="alert">
-                {error}
-              </div>
-            )}
+            <p className="text-gray-500 dark:text-gray-400 mt-2">Sign in to your account</p>
+          </div>
 
-            {authProviderConfig === 'external' ? (
+          {error && (
+            <div className="p-4 mb-6 text-sm text-red-800 rounded-xl bg-red-50 dark:bg-red-900/30 dark:text-red-400 border border-red-100 dark:border-red-800" role="alert">
+              <span className="font-semibold">Error:</span> {error}
+            </div>
+          )}
+
+          {externalAuthEnabled && (
+            <div className="mb-6">
               <button
                 onClick={handleExternalLogin}
-                className="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 rounded-xl transition-all duration-200 transform hover:scale-[1.02]"
               >
-                Go to Login Page (Auth Service)
+                Login with External Service
               </button>
-            ) : (
-              <form className="space-y-4 md:space-y-6" onSubmit={handleLocalLogin}>
-                <div>
-                  <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Your email (username)</label>
-                  <input
-                    type="text" // Form expects username usually, but we use email
-                    name="email"
-                    id="email"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    placeholder="name@company.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+              <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
                 </div>
-                <div>
-                  <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
-                  <input
-                    type="password"
-                    name="password"
-                    id="password"
-                    placeholder="••••••••"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white dark:bg-gray-800 text-gray-500">Or use local login</span>
                 </div>
-                <button type="submit" disabled={loading} className="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">
-                  {loading ? 'Signing in...' : 'Sign in'}
-                </button>
-              </form>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleLocalLogin}>
+            <div>
+              <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+              <input
+                type="email"
+                name="email"
+                id="email"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all"
+                placeholder="name@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+              <input
+                type="password"
+                name="password"
+                id="password"
+                placeholder="••••••••"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-5 py-3 text-sm font-semibold text-white bg-gray-900 hover:bg-black focus:ring-4 focus:ring-gray-300 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Signing in...
+                </span>
+              ) : 'Sign in'}
+            </button>
+          </form>
         </div>
       </div>
     </section>

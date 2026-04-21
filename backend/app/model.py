@@ -21,6 +21,13 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class UserPublic(SQLModel):
+    id: int
+    email: str
+    role: str
+    name: Optional[str] = None
+    scopes: Optional[List[str]] = Field(default_factory=list)
+
 class UserCreate(UserLogin):
     fullname: Optional[str] = Field(...)
 
