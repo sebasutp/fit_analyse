@@ -81,32 +81,37 @@ function ViewActivity() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center mt-8 px-8">
-      <div className="row-container">
-        <div className="activity-container">
-          {editMode ? (
-            <ActivityEditForm
-              initialName={currentActivityName}
-              initialDate={currentActivityDate}
-              initialTags={currentActivityTags}
-              onSave={onClickSave}
-              onCancel={onClickCancel}
-              isLoading={isSaving}
-            />
-          ) : (
-            <ActivityHeader
-              name={activity?.activity_base?.name}
-              date={activity?.activity_base?.date}
-              tags={activity?.activity_base?.tags || []}
-              onEdit={onClickEdit}
-              onDelete={onClickDelete}
-              isLoading={isSaving}
-            />
-          )}
+    <div className="flex flex-col items-center justify-center mt-4 sm:mt-8 px-4 sm:px-8 w-full max-w-7xl mx-auto">
+      <div className="flex flex-col lg:flex-row w-full gap-6 items-start mb-6">
+        <div className="w-full lg:w-1/3 xl:w-1/4">
+          <div className="activity-container bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            {editMode ? (
+              <ActivityEditForm
+                initialName={currentActivityName}
+                initialDate={currentActivityDate}
+                initialTags={currentActivityTags}
+                onSave={onClickSave}
+                onCancel={onClickCancel}
+                isLoading={isSaving}
+              />
+            ) : (
+              <ActivityHeader
+                name={activity?.activity_base?.name}
+                date={activity?.activity_base?.date}
+                tags={activity?.activity_base?.tags || []}
+                onEdit={onClickEdit}
+                onDelete={onClickDelete}
+                isLoading={isSaving}
+              />
+            )}
+          </div>
         </div>
 
-        <ActivityMetricsGrid activityAnalysis={activity?.activity_analysis} />
+        <div className="w-full lg:w-2/3 xl:w-3/4">
+          <ActivityMetricsGrid activityAnalysis={activity?.activity_analysis} />
+        </div>
       </div>
+
 
       {activity?.has_gps_data && (
         <div className="w-full max-w-5xl">

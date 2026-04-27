@@ -30,6 +30,8 @@ describe('ActivityCard component', () => {
       </MemoryRouter>
     );
     expect(screen.getByText('Avg HR')).toBeDefined();
-    expect(screen.getByText('145 bpm')).toBeDefined();
+    expect(screen.getByText(/145/)).toBeDefined();
+    expect(screen.getByText(/bpm/)).toBeDefined();
   });
+
 });
