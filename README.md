@@ -26,6 +26,8 @@ Make sure to use Python3.10 or newer.
     DB_URL="sqlite:///database.db"
     TOKEN_TIMEOUT=30
     PORT=8082
+    API_PREFIX="/api" # API folder / path prefix (default: /api)
+    CORS_ORIGINS="*" # Allowed CORS origins, comma-separated or wildcard (default: *)
     ```
 
 5. If you use a different DB_URL, please update it also in `./backend/alembic.ini`. Then
@@ -41,7 +43,7 @@ create the database using:
     (venv)$ python main.py
     ```
 
-6. Test at [http://localhost:8082/docs](http://localhost:8082/docs)
+7. Test at [http://localhost:8082/api/docs](http://localhost:8082/api/docs) (or [http://localhost:8082/docs](http://localhost:8082/docs))
 
 **Note**: the random secret `JWT_SECRET` can be generated for example 
 using a command like this one:

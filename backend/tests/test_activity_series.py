@@ -17,7 +17,7 @@ def test_get_activity_processed_series(client: TestClient, auth_headers, test_us
     
     # Mock activity_crud.fetch_activity_df to return our mock_df
     with patch("app.services.activity_crud.fetch_activity_df", return_value=mock_df):
-        response = client.get(f"/activity/{activity_id}/processed_series", headers=auth_headers)
+        response = client.get(f"/api/activity/{activity_id}/processed_series", headers=auth_headers)
         
         assert response.status_code == 200
         data = response.json()
@@ -37,6 +37,6 @@ def test_get_activity_processed_series_not_found(client: TestClient, auth_header
     activity_id = "non_existent"
     
     with patch("app.services.activity_crud.fetch_activity_df", return_value=None):
-        response = client.get(f"/activity/{activity_id}/processed_series", headers=auth_headers)
+        response = client.get(f"/api/activity/{activity_id}/processed_series", headers=auth_headers)
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity data not found"

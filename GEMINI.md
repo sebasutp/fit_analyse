@@ -37,6 +37,8 @@ Make sure to use Python 3.10 or newer.
     DB_URL="sqlite:///database.db"
     TOKEN_TIMEOUT=30
     PORT=8082
+    API_PREFIX="/api" # Optional: Backend API folder / path prefix, default /api
+    CORS_ORIGINS="*" # Optional: Allowed CORS origins (e.g. "http://localhost:5173,http://localhost:3000" or "*"), default *
     SEARCH_MATCH_THRESHOLD=75 # Optional: Fuzzy match threshold (0-100), default 75
     ```
 4.  **Create the database:**

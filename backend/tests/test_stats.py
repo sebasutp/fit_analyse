@@ -8,7 +8,7 @@ def test_get_stats_summary_all_time(client, auth_headers):
     # Ideally we should insert data. for now let's refer to what existing tests do.
     # But to be quick, let's just call the endpoint.
     
-    response = client.get("/users/me/stats/summary", headers=auth_headers)
+    response = client.get("/api/users/me/stats/summary", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert "distance" in data
@@ -32,7 +32,7 @@ def test_get_stats_summary_custom_range(client, dbsession, auth_headers, test_us
     end_str = today.date().isoformat()
     
     response = client.get(
-        f"/users/me/stats/summary?start_date={start_str}&end_date={end_str}",
+        f"/api/users/me/stats/summary?start_date={start_str}&end_date={end_str}",
         headers=auth_headers
     )
     assert response.status_code == 200
@@ -92,7 +92,7 @@ def test_stats_calculation_accuracy(client, dbsession, auth_headers, test_user):
     dbsession.commit()
     
     # 3. Call Endpoint
-    response = client.get("/users/me/stats/summary", headers=auth_headers)
+    response = client.get("/api/users/me/stats/summary", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     
@@ -163,7 +163,7 @@ def test_stats_excludes_routes(client, dbsession, auth_headers, test_user):
     dbsession.commit()
     
     # 3. Get Stats
-    response = client.get("/users/me/stats/summary", headers=auth_headers)
+    response = client.get("/api/users/me/stats/summary", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     

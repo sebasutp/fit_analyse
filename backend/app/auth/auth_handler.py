@@ -12,11 +12,11 @@ from sqlmodel import select, Session
 
 from app import model
 from app.auth import crypto
+from app.config import get_api_prefix
 
-JWT_SECRET = os.getenv("JWT_SECRET")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+_api_prefix = get_api_prefix()
+_token_url = f"{_api_prefix}/token".lstrip("/") if _api_prefix else "token"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=_token_url)
 
 
 def check_and_get_user(data: model.UserLogin, session: Session):
@@ -41,7 +41,9 @@ def create_access_token(user: model.User, expires_delta: Union[timedelta, None] 
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=30)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    jwt_secret = os.getenv("JWT_SECRET", "default_secret")
+    jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
+    encoded_jwt = jwt.encode(to_encode, jwt_secret, algorithm=jwt_algorithm)
     return encoded_jwt
 
 
@@ -49,8 +51,10 @@ def decode_jwt(token: str) -> dict:
     """ Decodes JWT token.
     """
     try:
+        jwt_secret = os.getenv("JWT_SECRET", "default_secret")
+        jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
         decoded_token = jwt.decode(
-            token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            token, jwt_secret, algorithms=[jwt_algorithm])
         return decoded_token
     except jwt.InvalidTokenError:
         return None

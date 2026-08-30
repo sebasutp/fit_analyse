@@ -51,7 +51,7 @@ def test_get_activity_with_nan_handling(auth_headers, test_user, dbsession, clie
     
     # We call the activity endpoint. 
     # Before the fixes, this failed with ValueError (JSON) or ResponseValidationError (Pydantic).
-    response = client.get(f"/activity/{activity.activity_id}", headers=auth_headers)
+    response = client.get(f"/api/activity/{activity.activity_id}", headers=auth_headers)
     
     # We expect 200 OK after both the sanitization AND model fixes are applied.
     assert response.status_code == 200

@@ -31,7 +31,7 @@ def test_exchange_token_success(mock_get, client, dbsession):
         "JWT_ALGORITHM": "HS256"
     }):
         response = client.post(
-            "/exchange-token",
+            "/api/exchange-token",
             json={"external_token": "valid_external_token"}
         )
 
@@ -65,7 +65,7 @@ def test_exchange_token_missing_scope(mock_get, client, dbsession):
         "EXTERNAL_AUTH_REQ_SCOPE": "app:access"
     }):
         response = client.post(
-            "/exchange-token",
+            "/api/exchange-token",
             json={"external_token": "valid_external_token"}
         )
 
@@ -80,12 +80,13 @@ def test_exchange_token_invalid_external_token(mock_get, client, dbsession):
 
     with patch.dict(os.environ, {"EXTERNAL_AUTH_ENDPOINT": "http://external-auth/me"}):
         response = client.post(
-            "/exchange-token",
+            "/api/exchange-token",
             json={"external_token": "invalid_token"}
         )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "External authentication failed"
+
 @patch("httpx.AsyncClient")
 def test_exchange_token_with_cookies(mock_client_class, client, dbsession):
     # Setup mock client and response
@@ -109,7 +110,7 @@ def test_exchange_token_with_cookies(mock_client_class, client, dbsession):
     }):
         # Send request with cookies
         response = client.post(
-            "/exchange-token",
+            "/api/exchange-token",
             json={},
             cookies={"session_id": "fake_cookie_123"}
         )

@@ -6,3 +6,4 @@ env/
 .vscode
 Pipfile*
 *.db
+*.log

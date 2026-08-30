@@ -18,13 +18,6 @@ def test_batch_upload_deduplication(auth_headers: dict, test_user: User, dbsessi
     content = b"dummy content"
     file_hash = hashlib.sha256(content).hexdigest()
     
-    # We need to simulate a valid FIT file upload or mock the parsing.
-    # Since we can't easily create a valid FIT file from scratch without a library on the fly, 
-    # we will mock the fit_parsing.extract_data_to_dataframe function.
-    # But for an integration test, it's better to use a real file if possible, or handle the mocking.
-    # Let's use mocking for parsing to isolate the upload logic.
-    
-    # Mock return value for extract_data_to_dataframe
     mock_df = pd.DataFrame({
         'timestamp': [datetime.utcnow()],
         'power': [100],
@@ -41,7 +34,7 @@ def test_batch_upload_deduplication(auth_headers: dict, test_user: User, dbsessi
             )
 
             # First upload
-            response = client.post("/upload_activity", headers=auth_headers, files={"file": ("test.fit", content, "application/octet-stream")})
+            response = client.post("/api/upload_activity", headers=auth_headers, files={"file": ("test.fit", content, "application/octet-stream")})
             assert response.status_code == 200
             data1 = response.json()
             assert data1["val_hash"] == file_hash
@@ -52,7 +45,7 @@ def test_batch_upload_deduplication(auth_headers: dict, test_user: User, dbsessi
             assert activity1.val_hash == file_hash
 
             # Second upload (same content)
-            response = client.post("/upload_activity", headers=auth_headers, files={"file": ("test.fit", content, "application/octet-stream")})
+            response = client.post("/api/upload_activity", headers=auth_headers, files={"file": ("test.fit", content, "application/octet-stream")})
             assert response.status_code == 200
             data2 = response.json()
             
@@ -99,7 +92,7 @@ def test_legacy_activity_update(auth_headers: dict, test_user: User, dbsession: 
              mock_summary.return_value = ActivitySummary(distance=2000, total_elapsed_time=200, active_time=200, power_summary=None)
 
              # Upload
-             response = client.post("/upload_activity", headers=auth_headers, files={"file": ("legacy.fit", content, "application/octet-stream")})
+             response = client.post("/api/upload_activity", headers=auth_headers, files={"file": ("legacy.fit", content, "application/octet-stream")})
              assert response.status_code == 200
              data = response.json()
              

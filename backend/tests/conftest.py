@@ -28,6 +28,8 @@ def mock_env():
     # Add other defaults as needed
     os.environ["JWT_SECRET"] = "testselect"
     os.environ["JWT_ALGORITHM"] = "HS256"
+    os.environ["API_PREFIX"] = "/api"
+    os.environ["CORS_ORIGINS"] = "*"
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_database(engine_fixture):

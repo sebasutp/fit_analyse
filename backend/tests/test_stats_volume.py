@@ -45,7 +45,7 @@ def test_volume_excludes_routes(client, dbsession, auth_headers, test_user):
     
     # 4. Fetch Volume Stats
     # The /volume endpoint defaults to '3m' which includes current week.
-    response = client.get("/users/me/stats/volume?period=3m", headers=auth_headers)
+    response = client.get("/api/users/me/stats/volume?period=3m", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     
