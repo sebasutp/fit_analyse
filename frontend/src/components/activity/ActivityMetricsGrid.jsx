@@ -5,7 +5,7 @@ function ActivityMetricsGrid({ activityAnalysis }) {
     if (!activityAnalysis) return null;
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 dark:text-gray-200">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 w-full">
             <Metric
                 name="Distance"
                 value={activityAnalysis.distance}
@@ -51,6 +51,7 @@ function ActivityMetricsGrid({ activityAnalysis }) {
             )}
         </div>
     );
+
 }
 
 export default ActivityMetricsGrid;

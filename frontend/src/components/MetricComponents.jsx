@@ -1,37 +1,26 @@
-import styled from 'styled-components';
-
-export const MetricCard = styled.div`
-  background-color: #f2f2f2;
-  border-radius: 6px;
-  padding: 10px;
-  margin: 6px;
-  text-align: center;
-`;
-
-export const MetricTitle = styled.h3`
-  font-size: 16px;
-  margin-bottom: 6px;
-`;
-
-export const MetricValue = styled.p`
-  font-size: 20px;
-  font-weight: bold;
-`;
-
-export function MetricBox({name, value}) {
+export function MetricBox({ name, value }) {
   return (
-    <MetricCard>
-      <MetricTitle>{name}</MetricTitle>
-      <MetricValue>{value}</MetricValue>
-    </MetricCard>
+    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-center flex flex-col justify-center min-w-0">
+      <h3 className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1 truncate" title={name}>
+        {name}
+      </h3>
+      <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+        {value}
+      </p>
+    </div>
   );
 }
 
-export function Metric({name, value, unit, decimalPlaces = 0}) {
+export function Metric({ name, value, unit, decimalPlaces = 0 }) {
+  const formattedValue = typeof value === 'number' ? value.toFixed(decimalPlaces) : value;
   return (
-    <MetricCard>
-      <MetricTitle>{name}</MetricTitle>
-      <MetricValue>{`${value.toFixed(decimalPlaces)} ${unit}`}</MetricValue>
-    </MetricCard>
+    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 text-center flex flex-col justify-center min-w-0">
+      <h3 className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1 truncate" title={name}>
+        {name}
+      </h3>
+      <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+        {`${formattedValue} `}<span className="text-xs sm:text-sm font-normal text-gray-500">{unit}</span>
+      </p>
+    </div>
   );
 }

@@ -28,9 +28,10 @@ export function ElevCard({ elevSummary }) {
   return (
     <div className="card-container">
       <h2 className="card-title">Altitude</h2>
-      <div className="h-80 lg:h-96">
+      <div className="h-64 sm:h-80 lg:h-96">
         <Line data={chartData} options={options} />
       </div>
+
     </div>
   );
 };

@@ -49,7 +49,7 @@ def create_activity_in_db(dbsession: Session, user_id: int, name: str, tags: lis
 
 # Test Cases
 def test_user_signup(dbsession, client): # Added client fixture arg
-    response = client.post("/user/signup", json={"email": "newuser@example.com", "password": "newpassword", "fullname": "New User"})
+    response = client.post("/api/user/signup", json={"email": "newuser@example.com", "password": "newpassword", "fullname": "New User"})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
@@ -61,14 +61,14 @@ def test_user_signup(dbsession, client): # Added client fixture arg
     assert user.fullname == "New User"
 
 def test_user_login(test_user: User, client):
-    response = client.post("/token", data={"username": "test@example.com", "password": "password123"})
+    response = client.post("/api/token", data={"username": "test@example.com", "password": "password123"})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
 
 def test_user_login_incorrect_password(test_user: User, client):
-    response = client.post("/token", data={"username": "test@example.com", "password": "wrongpassword"})
+    response = client.post("/api/token", data={"username": "test@example.com", "password": "wrongpassword"})
     assert response.status_code == 400
     assert response.json() == {"detail": "Incorrect username or password"}
 
@@ -77,7 +77,7 @@ def test_user_login_incorrect_password(test_user: User, client):
 def test_upload_activity_fit(auth_headers: dict, test_user: User, dbsession, client):
     fit_file_path = Path(__file__).resolve().parent.parent.parent / "examples" / "2024-11-12-065535-ELEMNT ROAM 8055-155-0.fit"
     with open(fit_file_path, "rb") as f:
-        response = client.post("/upload_activity", headers=auth_headers, files={"file": ("test.fit", f, "application/octet-stream")})
+        response = client.post("/api/upload_activity", headers=auth_headers, files={"file": ("test.fit", f, "application/octet-stream")})
     
     assert response.status_code == 200
     data = response.json()
@@ -99,7 +99,7 @@ def test_upload_activity_gpx(auth_headers: dict, test_user: User, dbsession, cli
   </trk>
 </gpx>"""
     with io.BytesIO(gpx_content.encode('utf-8')) as f:
-        response = client.post("/upload_activity", headers=auth_headers, files={"file": ("test.gpx", f, "application/gpx+xml")})
+        response = client.post("/api/upload_activity", headers=auth_headers, files={"file": ("test.gpx", f, "application/gpx+xml")})
 
     assert response.status_code == 200
     data = response.json()
@@ -115,7 +115,7 @@ def test_get_activities(auth_headers: dict, test_user: User, dbsession, client):
     create_activity_in_db(dbsession, test_user.id, "Activity 1")
     create_activity_in_db(dbsession, test_user.id, "Activity 2")
 
-    response = client.get("/activities", headers=auth_headers)
+    response = client.get("/api/activities", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
@@ -125,7 +125,7 @@ def test_get_activities(auth_headers: dict, test_user: User, dbsession, client):
 def test_get_activity(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "My Activity")
 
-    response = client.get(f"/activity/{activity.activity_id}", headers=auth_headers)
+    response = client.get(f"/api/activity/{activity.activity_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["activity_base"]["name"] == "My Activity"
@@ -133,7 +133,7 @@ def test_get_activity(auth_headers: dict, test_user: User, dbsession, client):
 def test_update_activity(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "Old Name")
 
-    response = client.patch(f"/activity/{activity.activity_id}", headers=auth_headers, json={"name": "New Name", "tags": ["updated"]})
+    response = client.patch(f"/api/activity/{activity.activity_id}", headers=auth_headers, json={"name": "New Name", "tags": ["updated"]})
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "New Name"
@@ -148,7 +148,7 @@ def test_update_activity(auth_headers: dict, test_user: User, dbsession, client)
 def test_delete_activity(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "To Be Deleted")
 
-    response = client.delete(f"/activity/{activity.activity_id}", headers=auth_headers)
+    response = client.delete(f"/api/activity/{activity.activity_id}", headers=auth_headers)
     assert response.status_code == 200
 
     # Verify it's deleted from the database
@@ -170,7 +170,7 @@ def test_get_activity_unauthorized(test_user: User, dbsession, client):
     token = create_access_token(test_user, timedelta(minutes=30))
     headers = {"Authorization": f"Bearer {token}"}
     
-    response = client.get(f"/activity/{activity.activity_id}", headers=headers)
+    response = client.get(f"/api/activity/{activity.activity_id}", headers=headers)
     assert response.status_code == 200 
 
 def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbsession, client):
@@ -184,7 +184,7 @@ def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbses
     activity = create_activity_in_db(dbsession, other_user.id, "Other's Activity")
 
     # test_user (with auth_headers) tries to update it
-    response = client.patch(f"/activity/{activity.activity_id}", headers=auth_headers, json={"name": "Hacked"})
+    response = client.patch(f"/api/activity/{activity.activity_id}", headers=auth_headers, json={"name": "Hacked"})
     assert response.status_code == 401
     # Check that the response body is empty for an unauthorized request
     assert not response.content
@@ -192,7 +192,7 @@ def test_update_activity_unauthorized(auth_headers: dict, test_user: User, dbses
 def test_get_activity_power_curve(auth_headers: dict, test_user: User, dbsession, client):
     activity = create_activity_in_db(dbsession, test_user.id, "Power Curve Activity")
     
-    response = client.get(f"/activity/{activity.activity_id}/power-curve", headers=auth_headers)
+    response = client.get(f"/api/activity/{activity.activity_id}/power-curve", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -200,13 +200,3 @@ def test_get_activity_power_curve(auth_headers: dict, test_user: User, dbsession
     # but the endpoint should be reachable.
     # The dummy data in create_activity_in_db has no power column, so it should be empty list.
     assert data == []
-
-# Search-related tests have been removed.
-
-# Teardown: Restore original dependencies if necessary
-# This is mostly for completeness if tests run in a shared environment or with other test suites.
-# Pytest fixtures usually handle cleanup well for test isolation.
-# Teardown: Restore original dependencies if necessary
-# pytest fixtures usually handle cleanup well for test isolation.
-# Conftest fixtures handle app dependencies.
-

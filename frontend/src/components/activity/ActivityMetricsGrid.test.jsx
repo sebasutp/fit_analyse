@@ -21,8 +21,11 @@ describe('ActivityMetricsGrid component', () => {
     const analysisWithHR = { ...mockAnalysis, average_heartrate: 145, max_heartrate: 180 };
     render(<ActivityMetricsGrid activityAnalysis={analysisWithHR} />);
     expect(screen.getByText('Average HR')).toBeDefined();
-    expect(screen.getByText('145 bpm')).toBeDefined();
+    expect(screen.getByText(/145/)).toBeDefined();
+    expect(screen.getAllByText(/bpm/)).toHaveLength(2);
     expect(screen.getByText('Max HR')).toBeDefined();
-    expect(screen.getByText('180 bpm')).toBeDefined();
+    expect(screen.getByText(/180/)).toBeDefined();
   });
+
+
 });

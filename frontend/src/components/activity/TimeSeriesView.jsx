@@ -106,7 +106,8 @@ const TimeSeriesView = ({ activityId }) => {
       </div>
 
       {/* Chart Area */}
-      <div className="p-6 h-[400px]">
+      <div className="p-4 sm:p-6 h-[250px] sm:h-[350px] lg:h-[400px]">
+
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>

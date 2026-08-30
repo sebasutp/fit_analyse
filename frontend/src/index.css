@@ -16,6 +16,7 @@
 .row-container {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .col-container {
@@ -24,28 +25,22 @@
 }
 
 .activity-container {
-  border-bottom: 1px solid #ccc;
-  padding: 10px;
+  padding: 1rem;
+  width: 100%;
 }
 
 .activity-title {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 5px;
+  @apply text-2xl sm:text-3xl font-bold mb-2 text-gray-900 dark:text-white;
 }
 
 .card-container {
-  border-bottom: 1px solid #ccc;
-  padding: 10px;
+  @apply border-b border-gray-200 dark:border-gray-700 p-4;
 }
 
 .card-title {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 5px;
+  @apply text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white;
 }
 
 .activity-date {
-  font-size: 16px;
-  color: gray;
+  @apply text-sm sm:text-base text-gray-500 dark:text-gray-400;
 }
